@@ -1,0 +1,22 @@
+{
+"source":"https://leetcode.com/explore/featured/card/system-design-for-interviews-and-beyond/",
+"verified_date":"2026-10-11",
+"basis":"Public syllabus headings only; independently authored Traditional Chinese textbook, not a translation or reconstruction of the paid course.",
+"chapters":[
+{"id":"01","title":"Introduction","topics":["Course introduction","Who will benefit from the course and how","Course overview"]},
+{"id":"02","title":"How to define system requirements","topics":["System requirements","Functional requirements","High availability","Fault tolerance, resilience, reliability","Scalability","Performance","Durability","Consistency","Maintainability, security, cost","Summary of system requirements"]},
+{"id":"03","title":"How to achieve certain system qualities with the help of hardware","topics":["Regions, availability zones, data centers, racks, servers","Physical servers, virtual machines, containers, serverless"]},
+{"id":"04","title":"Fundamentals of reliable, scalable, and fast communication","topics":["Synchronous vs asynchronous communication","Asynchronous messaging patterns","Network protocols","Blocking vs non-blocking I/O","Data encoding formats","Message acknowledgment"]},
+{"id":"05","title":"How to improve system performance with caching","topics":["Deduplication cache","Metadata cache"]},
+{"id":"06","title":"The importance of queues in distributed systems","topics":["Queue","Full and empty queue problems","Start with something simple","Blocking queue and producer-consumer pattern","Thread pool","Big compute architecture"]},
+{"id":"07","title":"Data store internals","topics":["Log","Index","Time series data","Simple key-value database","B-tree index","Embedded database","RocksDB","LSM-tree vs B-tree","Page cache"]},
+{"id":"08","title":"How to build efficient communication in distributed systems","topics":["Push vs pull","Host discovery","Service discovery","Peer discovery","How to choose a network protocol","Network protocols in real-life systems","Video over HTTP","CDN","Push and pull technologies","Push and pull technologies in real-life systems","Large-scale push architectures"]},
+{"id":"09","title":"How to deliver data reliably","topics":["What else to know to build reliable, scalable, and fast systems","Timeouts","What to do with failed requests","When to retry","How to retry","Message delivery guarantees","Consumer offsets"]},
+{"id":"10","title":"How to deliver data quickly","topics":["Batching","Compression"]},
+{"id":"11","title":"How to deliver data at large scale","topics":["How to scale message consumption","Partitioning in real-life systems","Partitioning strategies","Request routing","Rebalancing partitions","Consistent hashing"]},
+{"id":"12","title":"How to protect servers from clients","topics":["System overload","Autoscaling","Autoscaling system design","Load shedding","Rate limiting"]},
+{"id":"13","title":"How to protect clients from servers","topics":["Synchronous and asynchronous clients","Circuit breaker","Fail-fast design principle","Bulkhead","Shuffle sharding"]},
+{"id":"14","title":"Epilogue","topics":["The end (but not quite)"]},
+{"id":"15","title":"Practice problems part 1","topics":["Guidelines for part 1 problems","URL shortening system"]},
+{"id":"16","title":"Practice problems part 2","topics":["Guidelines for part 2 problems","Fraud detection system","Authentication and authorization system","Monitoring system"]}
+]}

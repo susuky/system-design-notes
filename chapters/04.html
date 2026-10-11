@@ -1,0 +1,149 @@
+<article id="chapter-04" class="chapter">
+  <header>
+    <p class="eyebrow">第四章 · Fundamentals / Communication</p>
+    <h2>通訊基礎：把「收到」與「做完」分開</h2>
+    <p class="lead">一份文件從上傳到辨識，再到寄出完成通知，至少跨過三種邊界：網路、程序與業務責任。選協定之前，先說清楚每次回應究竟承諾了什麼。</p>
+  </header>
+  <div class="callout">
+    <p><strong>本章案例。</strong>我們替多租戶文件處理與通知平台設計通訊。租戶提交文件，平台產生工作編號，背景執行病毒掃描與文字辨識，最後提供下載並通知使用者。文件內容存在物件儲存；訊息通常只帶租戶、文件版本、工作編號與物件參照。所有數值均是明示假設的教學算例，不代表任何產品的實測效能。</p>
+    <p><strong>共同基準。</strong>平台有 1 萬租戶，每日 100 萬份文件，平均原件 5 MB（十進位），尖峰日均 10 倍，每份轉換平均 2 CPU-seconds。日均約 11.57 份／秒，尖峰約 115.74 份／秒，原件每日約 5 TB。下列局部算例為了分別說明等待、流量與記憶體，另行指定參數。</p>
+    <p><strong>閱讀路線。</strong>先決定互動何時算完成，再決定訊息如何分派、位元組如何傳遞、執行緒如何等待、資料如何編碼，最後才有能力界定確認訊號的責任。</p>
+  </div>
+
+  <section aria-labelledby="c04-sync-async">
+    <h3 id="c04-sync-async">4.1 同步與非同步通訊（Synchronous vs asynchronous communication）</h3>
+    <p>同步互動要求呼叫者在這次互動中取得所需結果，才能繼續依賴該結果的流程。例如使用者按下預覽，必須先取得第一頁圖片才有東西可看。非同步互動則把「提交要求」與「取得最終結果」拆成不同時間點：平台先回工作編號，稍後透過查詢、推送或回呼傳回結果。這是<strong>互動契約</strong>的差別，還不是執行緒是否被占住的差別。</p>
+    <p>因此，同一個 HTTP 請求可以同步取得「工作已被接受」的回應，而它代表的整項文件工作仍是非同步的。RFC 9110 定義的 202 Accepted 只表示已接受處理，並不表示處理完成，也不保證最終一定成功。平台應附上可查詢的工作資源，而不是把 202 翻譯成「文件已完成」。<a href="https://www.rfc-editor.org/rfc/rfc9110.html#section-15.3.3">來源：HTTP 202 的標準語意</a>。</p>
+    <figure>
+      <svg viewBox="0 0 850 220" role="img" aria-labelledby="c04-flow-title c04-flow-desc" style="width:100%;height:auto">
+        <title id="c04-flow-title">提交與完成分成兩條時間路徑</title>
+        <desc id="c04-flow-desc">使用者提交工作，API 持久記錄工作後回傳 202 與工作編號。背景工作者稍後處理，將結果寫回工作狀態，使用者可查詢。</desc>
+        <defs><marker id="c04-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="#356b82"/></marker></defs>
+        <g fill="#eff6f7" stroke="#356b82" stroke-width="1.5"><rect x="20" y="25" width="145" height="60" rx="9"/><rect x="260" y="25" width="145" height="60" rx="9"/><rect x="520" y="25" width="205" height="60" rx="9"/><rect x="520" y="145" width="205" height="55" rx="9"/></g>
+        <g font-size="17" fill="#17374b" text-anchor="middle"><text x="92" y="62">使用者</text><text x="332" y="62">提交 API</text><text x="622" y="62">持久工作紀錄</text><text x="622" y="179">背景工作者</text></g>
+        <g stroke="#356b82" stroke-width="2" marker-end="url(#c04-arrow)" fill="none"><path d="M165,43 H258"/><path d="M405,43 H518"/><path d="M260,75 H168"/><path d="M622,85 V143"/><path d="M725,170 H810 V55 H728"/><path d="M92,86 V120 H520"/></g>
+        <g font-size="13" fill="#17374b"><text x="181" y="31">提交要求</text><text x="427" y="31">提交成功</text><text x="170" y="99">202 ＋工作編號</text><text x="265" y="115">稍後查詢工作狀態</text><text x="733" y="128">結果更新</text></g>
+      </svg>
+      <figcaption>回應得早，代表等待位置改變；文件辨識所需的運算不會因此消失。</figcaption>
+    </figure>
+    <p><strong>從等待量推導設計。</strong>假設平均每秒提交 40 件，每件端到端處理平均 8 秒，且系統處於穩定狀態。以平均在途量＝到達率×平均停留時間估算，同步等待中的工作約為 40×8＝320 件。若提交階段平均只花 0.12 秒，提交請求的平均在途量降為 40×0.12＝4.8 件。這只計算提交請求，不含上傳連線、狀態輪詢與背景工作；它也沒有把 8 秒的服務時間縮短。這裡使用的是 Little 法則的長期平均關係；第六章會進一步區分等待區與整個系統。<a href="https://pubsonline.informs.org/doi/abs/10.1287/opre.9.3.383">來源：Little 的原始論文</a>。</p>
+    <p>非同步能隔離尖峰與較長的服務時間，但增加狀態機、逾期政策與使用者介面成本。我們必須定義 queued、running、succeeded、failed、cancel_requested 等狀態，並回答取消是否只是盡力而為。同步流程較容易表達立即成功或失敗，卻會讓慢下游延長整條請求鏈。必須立即回覆的權限檢查採同步，耗時辨識採非同步。兩者各自配合需求，無須追求單一風格。</p>
+    <p><strong>故障案例。</strong>API 已提交工作紀錄，但回應在網路中遺失。客戶端逾時只知道「結果未知」，不能推論伺服器沒做事；用相同冪等鍵查詢或重試，才能避免產生第二份工作。若 API 只啟動記憶體中的背景函式便回 202，程序隨後重啟，這個承諾可能無從追蹤。平台應先持久保存足以恢復的工作意圖，再回應接受。</p>
+    <p class="pitfall"><strong>常見錯誤：</strong>把非同步當作免等待、把 HTTP 當作只能同步、把客戶端取消當成伺服器已停止，以及將逾時直接記成業務失敗。這四者都忽略了觀察者所在的邊界。</p>
+    <details class="exercise"><summary>練習：每秒 120 件，平均處理 3 秒；提交只需 0.15 秒。兩種平均在途量是多少？</summary><p>同步工作等待約 120×3＝360 件；提交階段約 120×0.15＝18 件。不能由此聲稱整體吞吐量提高二十倍：背景工作仍須提供每秒至少 120 件的長期處理能力，且輪詢也會新增負載。比較系統前，還要量測排隊時間與完成延遲。</p></details>
+  </section>
+
+  <section aria-labelledby="c04-messaging-patterns">
+    <h3 id="c04-messaging-patterns">4.2 非同步訊息模式（Asynchronous messaging patterns）</h3>
+    <p>決定非同步之後，先釐清<strong>誰對這份訊息負責</strong>，再問「要用哪家佇列」。命令（command）表達希望某項動作發生，例如 ProcessDocument；事件（event）表達已成立的事實，例如 DocumentProcessed。命令可能被拒絕，事件的歷史事實不應被訂閱者改寫。兩者都需要穩定識別碼，但讀者會對它們作出不同推論。</p>
+<figure class="visual-explainer" id="visual-04-fanout"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 520" role="img" aria-labelledby="visual-04-fanout-title visual-04-fanout-desc"><title id="visual-04-fanout-title">工作分攤與事件廣播：箭頭看似相同，責任不同</title><desc id="visual-04-fanout-desc">同一訊息要由一位工作者承擔，還是要讓多個業務各自知道？</desc><defs><marker id="visual-04-fanout-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#127c79"/></marker></defs><rect width="960" height="100%" rx="16" fill="#fff"/><text x="32" y="42" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="26" font-weight="700" text-anchor="start" fill="#163b42">工作分攤與事件廣播：箭頭看似相同，責任不同</text><text x="32" y="76" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#587078">同一訊息要由一位工作者承擔，還是要讓多個業務各自知道？</text><rect x="32" y="120" width="240" height="100" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="50" y="152" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">工作佇列</text><text x="50" y="179" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">工作 A、B、C</text><rect x="570" y="110" width="350" height="95" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="588" y="142" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">OCR 工作者 1</text><text x="588" y="169" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">例如領取 A、C</text><rect x="570" y="235" width="350" height="95" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="588" y="267" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">OCR 工作者 2</text><text x="588" y="294" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">例如領取 B</text><path d="M272 158 L565 158" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-04-fanout-arrow)"/><text x="418.5" y="146.0" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="16" font-weight="400" text-anchor="middle" fill="#127c79">競爭領取</text><path d="M272 185 L420 185 L420 280 L568 280" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-04-fanout-arrow)"/><rect x="32" y="360" width="240" height="95" rx="12" fill="#eaf2fc" stroke="#387ac3" stroke-width="1.5"/><text x="50" y="392" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#387ac3">完成事件</text><text x="50" y="419" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">DocumentProcessed</text><rect x="355" y="360" width="250" height="95" rx="12" fill="#eaf2fc" stroke="#387ac3" stroke-width="1.5"/><text x="373" y="392" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#387ac3">通知訂閱</text><text x="373" y="419" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">寄送完成提醒</text><rect x="670" y="360" width="250" height="95" rx="12" fill="#eaf2fc" stroke="#387ac3" stroke-width="1.5"/><text x="688" y="392" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#387ac3">分析訂閱</text><text x="688" y="419" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">更新使用統計</text><path d="M272 396 L352 396" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-04-fanout-arrow)"/><path d="M152 360 L152 342 L795 342 L795 358" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-04-fanout-arrow)"/><rect x="24" y="458" width="912" height="44" rx="12" fill="#f0f5f6" stroke="none" stroke-width="1.5"/><text x="42" y="487" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="18" font-weight="700" text-anchor="start" fill="#127c79">競爭消費者仍可能因重送重複處理；廣播則是每個訂閱各自消費。</text></svg><figcaption><strong>讀圖：</strong>上半部把工作分給不同人；下半部是同一件事通知不同部門。<br/><strong>抓住重點：</strong>一份業務事件可扇出多個訂閱，各自有進度、重試與失敗責任。</figcaption></figure>
+
+<div class="table-wrap"><table><caption>從平台需求選訊息拓撲</caption><thead><tr><th scope="col">模式</th><th scope="col">責任與案例</th><th scope="col">要付出的成本</th></tr></thead><tbody>
+      <tr><td>工作佇列／競爭消費者（work queue / competing consumers）</td><td>辨識工作交給一位可用工作者；其他工作者分擔其他工作</td><td>失敗會重新投遞；必須容忍同一工作先後或暫時同時執行</td></tr>
+      <tr><td>發布訂閱（publish–subscribe）</td><td>完成事件分別送到通知、搜尋索引與稽核三個訂閱</td><td>每個訂閱都有自己的積壓、保留期限與失敗處置</td></tr>
+      <tr><td>請求回覆（request–reply）</td><td>命令帶 correlation_id，回覆以相同識別碼配對</td><td>要處理遲到回覆、重複回覆，以及呼叫者已不再等待</td></tr>
+      <tr><td>協調式流程（orchestration）</td><td>工作控制器依序安排掃描、辨識、彙整</td><td>控制器需持久狀態與恢復機制；也比較容易查明停在哪一步</td></tr>
+    </tbody></table></div>
+    <p>在發布訂閱中，「一個服務群共用一個訂閱」和「每個服務各自有訂閱」意義不同。若通知與索引工作者競爭同一工作佇列，它們可能各拿走部分事件，而不是每個服務都處理全部事件。RabbitMQ 的交換器與佇列綁定提供不同路由方式，但「每位邏輯訂閱者是否擁有自己的待處理副本」仍要由拓撲明確表達。<a href="https://www.rabbitmq.com/tutorials/amqp-concepts">來源：RabbitMQ 的 AMQP 模型</a>。</p>
+    <p><strong>本教材的雙寫推導。</strong>辨識完成後，若先更新資料庫、再發布事件，兩步之間崩潰會造成「資料完成但沒人通知」；反過來先發事件，則可能通知一個尚未成立的結果。因此在同一資料庫交易中，寫入結果與 outbox 待發紀錄。轉送程序稍後發布 outbox，確認後才標記已發送。若發布成功但標記前崩潰，事件仍可能重複，所以 outbox 解決的是漏掉意圖的視窗，並未消除重複。</p>
+    <pre><code>// 概念偽碼：兩筆寫入在同一個本機資料庫交易
+transaction:
+    update document_version set state = "succeeded", result = result_ref
+    insert outbox(event_id, tenant_id, document_id, version, "DocumentProcessed")
+commit
+// 另一個程序負責投遞；重試沿用同一 event_id</code></pre>
+    <p>假設每秒產生 100 個完成事件，每個都要送到三個獨立訂閱，則邏輯投遞量是每秒 300 份，不包含重試。若某訂閱每秒只能處理 70 份，它自己每秒累積 30 份，而非另外兩個訂閱也必然被拖慢；但共用儲存、網路或配額仍可能傳播壓力。版本事件可能亂序，索引工作者應拒絕較舊版本覆蓋新版本；不能假設所有通道共享全域順序。</p>
+    <p class="pitfall"><strong>常見錯誤：</strong>事件只放 document_id，消費者讀取時拿到另一版本；所有失敗都立即重排，形成高速重試風暴；毒性訊息沒有重試上限；丟進死信佇列（dead-letter queue）就算結案。死信需要原因、負責人、保存期限與修復後重放方式。</p>
+    <details class="exercise"><summary>練習：通知與索引都必須看到每個完成事件，應共用一個競爭消費佇列嗎？</summary><p>不應。兩者需各自的邏輯訂閱或佇列，再讓同類工作者在該訂閱內競爭。事件應帶 event_id、tenant_id、document_id、document_version；同一事件的重送使用相同 event_id。這樣既能橫向擴充，又不會把不同業務責任錯當成同一份工作。</p></details>
+  </section>
+
+  <section aria-labelledby="c04-network-protocols">
+    <h3 id="c04-network-protocols">4.3 網路協定（Network protocols）</h3>
+    <p>協定提供的是特定層次的契約。傳輸層處理端點間的資料傳送，應用層定義要求、回應與訊息結構。TLS 處理加密與對端驗證；它不會替業務判定租戶能否下載某份文件。設計時把可靠傳輸、保密、授權和業務成功分別寫出，才不會用「我們有 HTTPS」回答所有問題。</p>
+    <div class="table-wrap"><table><caption>本平台可能用到的協定及其邊界</caption><thead><tr><th scope="col">協定</th><th scope="col">提供什麼</th><th scope="col">不應推論什麼</th></tr></thead><tbody>
+      <tr><td>TCP</td><td>可靠、有序的位元組串流</td><td>沒有保留應用訊息邊界；一次 send 不對應一次 recv；傳輸確認不是資料庫提交</td></tr>
+      <tr><td>UDP</td><td>保留資料報邊界的傳輸</td><td>本身不提供可靠重送或排序；應用若需要就必須另外實作</td></tr>
+      <tr><td>QUIC</td><td>在 UDP 上提供安全、多路串流傳輸</td><td>不同串流可獨立交付，但仍可能共享壅塞控制與連線級流量限制</td></tr>
+      <tr><td>HTTP</td><td>方法、狀態碼、標頭等應用語意</td><td>200 或 202 的業務意義取決於資源與契約；並不是所有操作都已完成</td></tr>
+    </tbody></table></div>
+    <p>上表前三列的基礎契約分別可查閱 <a href="https://www.rfc-editor.org/rfc/rfc9293.html">TCP：RFC 9293</a>、<a href="https://www.rfc-editor.org/rfc/rfc768.html">UDP：RFC 768</a> 與 <a href="https://www.rfc-editor.org/rfc/rfc9000.html">QUIC：RFC 9000</a>。不要從協定存在某項機制，就推論在你的環境一定比較快。</p>
+    <p>文件上傳可以使用 HTTP，因為它容易接合既有授權與儲存服務；內部呼叫可依工具鏈選擇 HTTP／RPC；長時間結果推送可使用合適的串流或持久連線方式。決策因素包括中介代理支援、逾時、訊息大小、流量控制、除錯能力與客戶端相容性。不能只比較握手次數，卻忽略大文件傳輸通常被頻寬、磁碟或處理速度限制。</p>
+    <p><strong>算例。</strong>假設一份 20 MiB 文件，路徑可持續提供 10 MiB/s 的有效資料吞吐量，只傳文件本體就約需 20÷10＝2 秒；握手、排隊、重送與伺服器處理還要另計。如果「10」其實是 10 Mbit/s，則 20×2<sup>20</sup>×8÷10,000,000 約為 16.78 秒。先統一 byte、bit 與十進位／二進位單位，往往比爭論協定名稱更有用。</p>
+    <p><strong>故障案例。</strong>自己在 TCP 上實作工作協定，發送端連寫兩個 JSON，接收端一次只讀到半個，或一次讀到兩個。這不是 TCP「切壞訊息」，而是應用沒有定義 framing（分框）。可以使用長度前綴，並限制最大長度、累積不足資料、分離完整訊息；若信任任意長度宣告，攻擊者可誘發巨量配置。使用成熟應用協定可少掉這類自製風險。</p>
+    <p class="pitfall"><strong>常見錯誤：</strong>把 TCP 有序延伸成多連線全域有序；把 QUIC 說成消除了所有隊首阻塞；把網路重試設成無限；把連線成功當作授權成功。故障範圍不同，保證也不同。</p>
+    <details class="exercise"><summary>練習：TCP 接收端讀到 700 bytes，但預期訊息有 1,000 bytes。可以判定訊息損壞嗎？</summary><p>不能。應依 framing 累積其餘位元組，直到完整、逾時、連線結束或超過限制。若同次讀取含下一個訊息，還要保留多出的資料。校驗與內容驗證是另外的步驟，不能由單次 recv 長度替代。</p></details>
+  </section>
+
+  <section aria-labelledby="c04-blocking-io">
+    <h3 id="c04-blocking-io">4.4 阻塞與非阻塞 I/O（Blocking vs non-blocking I/O）</h3>
+    <p>阻塞（blocking）描述呼叫在等待條件成立時，呼叫它的執行緒是否被占住。非阻塞（non-blocking）呼叫則會在暫時無法進行時迅速返回，例如回傳 EAGAIN，讓程式稍後再試。這和 4.1 的同步／非同步業務互動是兩個維度：以背景執行緒呼叫阻塞 API，也能向上層提供非同步介面；反過來，以非阻塞 socket 實作的客戶端仍可同步等待最終業務結果。</p>
+    <div class="table-wrap"><table><caption>不要把使用者等待與執行緒等待混為一談</caption><thead><tr><th scope="col">觀察層</th><th scope="col">真正要問的問題</th><th scope="col">平台例子</th></tr></thead><tbody>
+      <tr><td>業務互動</td><td>這次回應是最終結果，還是接受工作？</td><td>立即回預覽圖，或先回工作編號</td></tr>
+      <tr><td>程式 API</td><td>呼叫返回時操作已完成，還是稍後以 future／callback 通知？</td><td>等待儲存完成的 future</td></tr>
+      <tr><td>執行緒／系統呼叫</td><td>無資料可讀時，執行緒睡眠等待還是立即返回？</td><td>阻塞 recv 或非阻塞 recv</td></tr>
+    </tbody></table></div>
+    <p>多路複用（multiplexing）讓一個事件迴圈監看許多描述符。以 Linux epoll 為例，ready 通知通常表示現在值得嘗試 I/O，並不是完整應用訊息已到齊，更不是業務完成。邊緣觸發（edge-triggered）模式需要特別維護尚未讀完的狀態；官方手冊建議使用非阻塞描述符，並在讀寫返回 EAGAIN 後才再次等待。<a href="https://man7.org/linux/man-pages/man7/epoll.7.html">來源：Linux epoll(7)</a>。</p>
+    <pre><code>// 示意：真實版本還須處理 EOF、錯誤、公平性與緩衝上限
+on_readable(connection):
+    loop:
+        data = nonblocking_read(connection)
+        if data == WOULD_BLOCK: break
+        if data == EOF: close_and_record_state(); break
+        append_to_bounded_buffer(data)
+        while buffer_has_complete_frame():
+            dispatch(parse_one_frame())
+// 不可在事件迴圈中直接執行長時間 OCR 或阻塞資料庫呼叫</code></pre>
+    <p><strong>取捨。</strong>每連線一執行緒較容易寫成直線程式，但大量等待連線會帶來執行緒與記憶體成本；事件迴圈能降低這類成本，卻必須處理分段讀寫、取消與狀態轉移。背景 thread pool 可以容納只有阻塞介面的函式庫，但若池被慢服務耗盡，非同步外觀依然會排隊。真正的非同步 I/O 可透過完成通知回報已提交的 I/O 結果；它又不同於僅通知「可嘗試讀寫」的就緒事件。</p>
+    <p>假設事件迴圈期望每 10 ms 檢查一次其他連線，卻直接執行一段 250 ms 的 CPU 密集辨識。它至少有約 25 個檢查間隔無法服務其他連線；把函式標成 async 不會消除這段占用。應拆到受控的計算工作池，並限制提交速度。若單次 drain 一個熱門 socket 永不讓出，也會使其他連線飢餓；可維護就緒清單與每輪處理預算，而不是任意放棄尚未讀完的邊緣觸發狀態。</p>
+    <p class="pitfall"><strong>常見錯誤：</strong>看到 await 就認為沒有阻塞；把 non-blocking 誤解成零等待；輪詢 EAGAIN 的緊密迴圈燒滿 CPU；忽略 write 也可能只送出部分資料。衡量時要一起看事件迴圈延遲、等待池長度、CPU 與尾端延遲。只數執行緒，看不出等待發生在哪裡。</p>
+    <details class="exercise"><summary>練習：把阻塞 SDK 放到十個執行緒的工作池，就能處理任意多個並行外部請求嗎？</summary><p>不能。同時執行的阻塞呼叫仍受十個執行緒限制。其他要求會排隊或被拒絕；若每次平均占用一秒，忽略其他瓶頸的理想服務能力約為每秒十次。上層非同步只釋放呼叫者，並沒有製造無限下游容量。</p></details>
+  </section>
+
+  <section aria-labelledby="c04-encoding">
+    <h3 id="c04-encoding">4.5 資料編碼格式（Data encoding formats）</h3>
+    <p>網路只搬位元組，接收端卻要重建欄位與型別。序列化（serialization）定義資料結構如何轉成位元組；UTF-8 是文字字元的編碼；壓縮（compression）再改變位元組的表示以節省空間。三者解決不同問題。JSON 便於檢視，但可讀不代表沒有 schema；Protocol Buffers 等格式以欄位編號描述結構，通常需要雙方維護相容的結構定義。</p>
+    <p>本平台的訊息封套至少需 event_id、tenant_id、document_id、document_version、schema_version、occurred_at 與 payload。傳送物件參照時，必須驗證其屬於對應租戶；不要把長效下載憑證或整份文件內容隨事件散播。時間欄位應明定時區及精度，檔案大小明定 byte，缺欄位與明確空值也要有分別。</p>
+    <p><strong>可重算的編碼算例。</strong>不含空白的 JSON <code>{"pages":150}</code> 以 UTF-8 表示共 13 bytes。若 protobuf schema 只有 <code>uint32 pages = 1;</code>，150 的 varint 是 0x96 0x01，加上欄位標籤 0x08，共 3 bytes。這只比較同一個極小資料值的訊息本體，排除 schema、框架、壓縮與其他欄位，不能推論全平台流量都縮小至 3/13，也不能推論解析一定更快。<a href="https://protobuf.dev/programming-guides/encoding/">來源：Protobuf wire encoding</a>。</p>
+    <div class="table-wrap"><table><caption>格式選擇必須連同演進規則一起決定</caption><thead><tr><th scope="col">需求</th><th scope="col">可考慮方案</th><th scope="col">檢查點</th></tr></thead><tbody>
+      <tr><td>跨組織 API、人工除錯</td><td>JSON 加明確契約</td><td>大型整數、日期格式、重複鍵、未知欄位與大小限制</td></tr>
+      <tr><td>受控內部服務、產生型別程式碼</td><td>Protobuf 等 schema 格式</td><td>新舊消費者共存、保留刪除欄位編號、工具鏈一致性</td></tr>
+      <tr><td>大量離線分析</td><td>依讀取形狀評估欄式儲存</td><td>這是檔案與分析布局需求，不宜只按 RPC 訊息格式選擇</td></tr>
+    </tbody></table></div>
+    <p><strong>故障案例。</strong>某租戶的文件編號超過 2<sup>53</sup>−1，JSON 本身可以寫出這個數字，但使用雙精度浮點數解析的程式可能失去整數精度。將不做算術的識別碼定為字串可避免這類跨語言陷阱；RFC 8259 也提醒不同實作對數值範圍和精度的互通限制。<a href="https://www.rfc-editor.org/rfc/rfc8259.html#section-6">來源：JSON Numbers</a>。</p>
+    <p>演進時先讓消費者接受新欄位，再由生產者發送，並測試舊訊息能否重放。Protobuf 刪除欄位後應保留其編號；重用編號可能使舊資料被解成另一種業務意義。<a href="https://protobuf.dev/programming-guides/editions/#deleting-fields">來源：Protobuf 刪除欄位規則</a>。即使是同一份語意資料，序列化位元組也不一定具有全域穩定順序；若要簽章或去重，需約定正規化形式，不要直接假設任意序列化輸出都相同。</p>
+    <p class="pitfall"><strong>常見錯誤：</strong>把格式大小比較當成端到端效能測試；認為新增欄位永遠無害；把解碼成功當作業務合法；允許無限深巢狀資料或壓縮後無上限解壓。解析後仍需驗證租戶、版本、大小與可接受值。</p>
+    <details class="exercise"><summary>練習：把 page_count 改名為 pages，再沿用同一 protobuf 欄位編號，是否一定安全？</summary><p>二進位通道主要看編號與相容型別，因此單純改名可能不改變 wire format；但 JSON 表示、反射、監控、程式碼與業務語意仍可能受影響。若連意義也改了，例如由總頁數改成已處理頁數，就應另建欄位並規劃遷移，不能以位元組相容代替語意相容。</p></details>
+  </section>
+
+  <section aria-labelledby="c04-acknowledgment">
+    <h3 id="c04-acknowledgment">4.6 訊息確認（Message acknowledgment）</h3>
+    <p>確認（acknowledgment，ACK）是一個接收方對某件事作出的聲明，意思取決於<strong>哪一層、哪個接收方、何時發出</strong>。TCP ACK 關於傳輸位元組；訊息代理的發布確認關於代理接手訊息；消費者 ACK 通知代理可以結束這次投遞責任。這些都不自動證明使用者已收到通知，更不證明他讀過文件。</p>
+<figure class="visual-explainer" id="visual-04-ack"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 450" role="img" aria-labelledby="visual-04-ack-title visual-04-ack-desc"><title id="visual-04-ack-title">沒收到 ACK，並不能推論對方沒做事</title><desc id="visual-04-ack-desc">教學時間線：副作用已完成，只有確認訊號在途中遺失。</desc><defs><marker id="visual-04-ack-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#127c79"/></marker></defs><rect width="960" height="100%" rx="16" fill="#fff"/><text x="32" y="42" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="26" font-weight="700" text-anchor="start" fill="#163b42">沒收到 ACK，並不能推論對方沒做事</text><text x="32" y="76" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#587078">教學時間線：副作用已完成，只有確認訊號在途中遺失。</text><text x="125" y="123" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="middle" fill="#163b42">生產者／呼叫端</text><path d="M125 145 V353" stroke="#c3d4d8" stroke-dasharray="5 5"/><text x="770" y="123" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="middle" fill="#163b42">消費者／服務端</text><path d="M770 145 V353" stroke="#c3d4d8" stroke-dasharray="5 5"/><path d="M125 165 L770 165" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-04-ack-arrow)"/><text x="447.5" y="153.0" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="16" font-weight="400" text-anchor="middle" fill="#127c79">要求：扣除一次額度，id = K</text><rect x="580" y="193" width="310" height="83" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="598" y="225" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">副作用已提交</text><text x="598" y="252" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">額度已扣除</text><path d="M770 295 L460 295" fill="none" stroke="#127c79" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#visual-04-ack-arrow)"/><text x="615.0" y="283.0" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="16" font-weight="400" text-anchor="middle" fill="#127c79">ACK 遺失</text><text x="425" y="303" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="28" font-weight="700" text-anchor="start" fill="#bd4354">×</text><path d="M125 342 L770 342" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-04-ack-arrow)"/><text x="447.5" y="330.0" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="16" font-weight="400" text-anchor="middle" fill="#127c79">逾時後，用相同 id = K 重試</text><rect x="24" y="388" width="912" height="44" rx="12" fill="#f0f5f6" stroke="none" stroke-width="1.5"/><text x="42" y="417" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="18" font-weight="700" text-anchor="start" fill="#127c79">唯一鍵／交易或下游冪等契約，才能把重試與「再做一次」分開。</text></svg><figcaption><strong>讀圖：</strong>先看框內已提交，再看沒有送達的 ACK，最後看同鍵重試。<br/><strong>抓住重點：</strong>網路逾時代表結果未知；把重試安全性放進業務邊界。</figcaption></figure>
+
+<p>RabbitMQ 明確區分 publisher confirms 與 consumer acknowledgements，兩者並不知道彼此的業務進度。手動 ACK 模式由應用程式決定何時確認；失去連線時，未確認的投遞可能重排。發布者也可能遇到「代理已接手，但確認回程遺失」而必須重送。<a href="https://www.rabbitmq.com/docs/confirms">來源：RabbitMQ 確認機制</a>、<a href="https://www.rabbitmq.com/docs/reliability">可靠性指南</a>。</p>
+    <div class="table-wrap"><table><caption>在任意兩步之間拔掉電源，才看得出 ACK 的意義</caption><thead><tr><th scope="col">順序</th><th scope="col">故障視窗</th><th scope="col">後果與對策</th></tr></thead><tbody>
+      <tr><td>先 ACK，再寫入結果</td><td>ACK 後、結果提交前崩潰</td><td>代理可能不再投遞，工作丟失；不適合必須完成的文件工作</td></tr>
+      <tr><td>先寫入結果，再 ACK</td><td>結果提交後、ACK 前崩潰</td><td>工作可能重送；用持久冪等紀錄避免重複副作用</td></tr>
+      <tr><td>先寄通知，再記已寄</td><td>供應商已接受，紀錄尚未提交</td><td>重試可能重寄；需供應商冪等鍵、狀態查詢或人工核對</td></tr>
+    </tbody></table></div>
+    <p><strong>本平台的責任界線。</strong>辨識工作者將結果參照、工作完成狀態、事件冪等紀錄與通知 outbox 一起提交，之後才 ACK。重新投遞時若同一事件已完成，就不再產生第二筆通知意圖。通知工作者另外處理外部寄送；一個資料庫交易不能把外部寄信服務憑空包進來，因此這裡必須承認不同的失敗視窗。</p>
+    <pre><code>on_message(message):
+    result_ref = compute_or_reuse_versioned_result(message)
+    transaction:
+        if processed_events.contains(message.event_id):
+            verify_same_tenant_and_intent(message)
+        else:
+            persist_result_and_job_state(result_ref)
+            insert_unique_processed_event(message.event_id)
+            insert_unique_notification_outbox(message.event_id)
+    commit
+    ack_this_delivery()  // 使用目前通道上的 delivery tag
+// 唯一約束衝突時整筆回滾並重新讀取；沒有成功提交就不能 ACK
+// 重複運算仍可能發生；交易與唯一約束保護的是指定業務副作用</code></pre>
+    <p>算例：假設每秒處理 200 件，平均從接收至持久提交需 0.4 秒，平均執行中的工作約 80 件。若每件載入後占 2 MiB，光在途內容平均就約 160 MiB，尚未計入解析與複本。預取（prefetch）應配合可用並行度及記憶體限制；設得很大可能讓工作囤在單一消費者，增加重送量和等待不公平，而不是必然提高吞吐。</p>
+    <p class="pitfall"><strong>常見錯誤：</strong>「至少一次」等於最終必定成功；「恰好一次」等於外部世界所有副作用都只發生一次；以收到 HTTP 200 推論收件人已收信。可靠性契約必須標明保存期限、重試政策、去重範圍與不可恢復失敗，不能只寫一個口號。</p>
+    <details class="exercise"><summary>練習：供應商接受寄信後連線中斷，平台沒拿到回應。下一步應立即換新識別碼重寄嗎？</summary><p>不應。結果未知時，新識別碼會使供應商更難判定重複。若供應商支援，沿用相同業務冪等鍵重試或查詢狀態；否則保存未知狀態與證據，依產品容忍度對帳。這個限制無法靠訊息代理 ACK 消除。</p></details>
+  </section>
+
+  <footer class="chapter-summary"><p><strong>本章帶走的設計紀錄：</strong>提交回應與最終結果分開；每個訊息有明確責任人與版本；網路、執行緒、編碼及 ACK 各自具有有限保證。下一章處理重試留下的重複，以及反覆查詢造成的負載：快取必須服務正確性邊界，不能取代它。</p></footer>
+</article>
