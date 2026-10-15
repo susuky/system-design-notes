@@ -46,7 +46,7 @@
   </form>
   <div class="sd-lab-controls js-only" role="group" aria-label="至少一次投遞與冪等效果：步驟控制"><button type="button" data-sd-action="prev">← 上一步</button><button type="button" data-sd-action="next">下一步 →</button><button type="button" data-sd-action="reset">重設步驟</button><button type="button" data-sd-action="last">查看結果</button><span class="sd-lab-step">步驟 1</span></div>
   <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><div class="sd-lab-invariants"><strong>這一步的不變量</strong><ul class="sd-lab-checks"></ul></div></div>
-  <div class="sd-lab-principle"><p><strong>要守住什麼</strong> 傳送端逾時不代表消費者沒執行。相同操作 ID 應重用原結果；M2 即使內容和 M1 一樣，仍是另一個合法操作。</p><p><strong>何時停止</strong> M1 最終收到 ACK，再完成 M2 即停止。只能說本模型的業務效果沒有重複，不能推成端到端 exactly-once 保證。</p><p class="sd-lab-challenge"><strong>換一組試試</strong> 關閉去重，把 ACK 遺失次數改成 3。投遞次數、提交次數與原本預期的兩筆操作各是多少？</p></div>
+  <div class="sd-lab-principle"><p><strong>要守住什麼</strong> 傳送端逾時不代表消費者沒執行。相同操作 ID 應重用原結果；M2 即使內容和 M1 一樣，仍是另一個合法操作。</p><p><strong>何時停止</strong> M1 最終收到 ACK，再完成 M2 即停止。這個模型展示業務效果去重；端到端 exactly-once 還須涵蓋傳輸、持久化與外部副作用。</p><p class="sd-lab-challenge"><strong>換一組試試</strong> 關閉去重，把 ACK 遺失次數改成 3。投遞次數、提交次數與原本預期的兩筆操作各是多少？</p></div>
   <noscript><p class="sd-lab-noscript">啟用 JavaScript 可逐步操作；上方保留模型假設與觀察重點，詳細解說請見對應章節。</p></noscript>
 </section>
 
@@ -63,7 +63,7 @@
   </form>
   <div class="sd-lab-controls js-only" role="group" aria-label="非同步複寫與 read-your-writes：步驟控制"><button type="button" data-sd-action="prev">← 上一步</button><button type="button" data-sd-action="next">下一步 →</button><button type="button" data-sd-action="reset">重設步驟</button><button type="button" data-sd-action="last">查看結果</button><span class="sd-lab-step">步驟 1</span></div>
   <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><div class="sd-lab-invariants"><strong>這一步的不變量</strong><ul class="sd-lab-checks"></ul></div></div>
-  <div class="sd-lab-principle"><p><strong>要守住什麼</strong> 副本套用的是主節點日誌的前綴。工作階段 token 記錄自己已確認的版本；副本未追上時，讀取策略要決定等待、改讀或失敗。</p><p><strong>何時停止</strong> 所有寫入完成，待複寫日誌排空，再讀一次即停止。這組排程的結果不能證明多寫入者下的線性一致性。</p><p class="sd-lab-challenge"><strong>換一組試試</strong> 先用延遲 3 拍讀副本，再改成帶 token。回覆由哪個節點提供？付出了什麼負載或延遲上的代價？</p></div>
+  <div class="sd-lab-principle"><p><strong>要守住什麼</strong> 副本套用的是主節點日誌的前綴。工作階段 token 記錄自己已確認的版本；副本未追上時，讀取策略要決定等待、改讀或失敗。</p><p><strong>何時停止</strong> 所有寫入完成，待複寫日誌排空，再讀一次即停止。多寫入者的線性一致性另需加入並行操作與全域順序的驗證。</p><p class="sd-lab-challenge"><strong>換一組試試</strong> 先用延遲 3 拍讀副本，再改成帶 token。回覆由哪個節點提供？付出了什麼負載或延遲上的代價？</p></div>
   <noscript><p class="sd-lab-noscript">啟用 JavaScript 可逐步操作；上方保留模型假設與觀察重點，詳細解說請見對應章節。</p></noscript>
 </section>
 
@@ -98,6 +98,6 @@
   </form>
   <div class="sd-lab-controls js-only" role="group" aria-label="一致性雜湊的區間變化：步驟控制"><button type="button" data-sd-action="prev">← 上一步</button><button type="button" data-sd-action="next">下一步 →</button><button type="button" data-sd-action="reset">重設步驟</button><button type="button" data-sd-action="last">查看結果</button><span class="sd-lab-step">步驟 1</span></div>
   <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><div class="sd-lab-invariants"><strong>這一步的不變量</strong><ul class="sd-lab-checks"></ul></div></div>
-  <div class="sd-lab-principle"><p><strong>要守住什麼</strong> 加入 N 後，只有落在其前一節點到 N 之間的 key 改向 N。其他 key 的原負責節點不變；負載是否平均要另外觀察。</p><p><strong>何時停止</strong> 每個 key 的舊路由與新路由都算完即停止。這是搬移計畫，不代表資料已複製或線上切換已安全完成。</p><p class="sd-lab-challenge"><strong>換一組試試</strong> 把 N 改放到 0，並加入位置 99、0、1 的 key。跨過環的起點時，開區間與閉區間各包含誰？</p></div>
+  <div class="sd-lab-principle"><p><strong>要守住什麼</strong> 加入 N 後，只有落在其前一節點到 N 之間的 key 改向 N。其他 key 的原負責節點不變；負載是否平均要另外觀察。</p><p><strong>何時停止</strong> 每個 key 的舊路由與新路由都算完即停止。完成路由計算後，接著驗證資料複製、雙版本路由與線上切換流程。</p><p class="sd-lab-challenge"><strong>換一組試試</strong> 把 N 改放到 0，並加入位置 99、0、1 的 key。跨過環的起點時，開區間與閉區間各包含誰？</p></div>
   <noscript><p class="sd-lab-noscript">啟用 JavaScript 可逐步操作；上方保留模型假設與觀察重點，詳細解說請見對應章節。</p></noscript>
 </section>

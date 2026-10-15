@@ -31,7 +31,7 @@ POST /v1/review-outcomes
 <p>資料可分成四類：不可變原始事件、線上特徵、模型／政策版本、決策與審核紀錄。事件包含 event_time、received_at、available_at、source_version；線上特徵保存值、窗口、更新時間與缺失狀態。交易 ID 用於去重，評估 ID 用於一個明確版本的判斷。同交易若允許重評，必須產生新評估版本並指向舊版本，不能覆寫原始歷史。</p>
 <h4>四、架構：快速評估加上延遲回饋</h4>
 <figure class="diagram"><svg viewBox="0 0 950 290" role="img" aria-labelledby="c16-fraud-title"><title id="c16-fraud-title">風險架構：即時特徵與模型評估，事件與審核結果進入離線驗證和版本發布</title><defs><marker id="c16-fraud-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs><g fill="none" stroke="currentColor" stroke-width="2"><rect x="15" y="45" width="150" height="65" rx="10"/><rect x="220" y="45" width="190" height="65" rx="10"/><rect x="475" y="45" width="180" height="65" rx="10"/><rect x="725" y="45" width="205" height="65" rx="10"/><rect x="220" y="200" width="190" height="65" rx="10"/><rect x="475" y="200" width="180" height="65" rx="10"/><rect x="725" y="200" width="205" height="65" rx="10"/><path d="M165 78H215 M410 78H470 M655 78H720 M315 195V115 M827 115V195 M720 233H660 M475 233H415" marker-end="url(#c16-fraud-arrow)"/></g><g fill="currentColor" font-size="18" text-anchor="middle"><text x="90" y="84">交易請求</text><text x="315" y="84">線上特徵／品質</text><text x="565" y="84">規則＋版本模型</text><text x="827" y="84">評估／驗證／審核</text><text x="315" y="240">事件流／特徵更新</text><text x="565" y="240">離線訓練與驗證</text><text x="827" y="240">延遲標籤與回饋</text></g></svg><figcaption>原創示意。離線結果經驗證與受控發布才進入線上；回饋不等於立即可靠的真相。</figcaption></figure>
-<p>在線流程先做 schema 驗證、授權與評估去重，再平行讀取有限的特徵組、計算廉價規則，使用固定版本模型推論，最後由政策層結合分數、原因和資料品質產生建議。總預算 150 ms 可先粗分入口與去重 15 ms、特徵取得 45 ms、推論 25 ms、政策與持久化 35 ms、網路與餘裕 30 ms；這只是分配起點，需量測端到端分布，不能把各階段 p99 相加當證明。</p>
+<p>在線流程先做 schema 驗證、授權與評估去重，再平行讀取有限的特徵組、計算廉價規則，使用固定版本模型推論，最後由政策層結合分數、原因和資料品質產生建議。總預算 150 ms 可先粗分入口與去重 15 ms、特徵取得 45 ms、推論 25 ms、政策與持久化 35 ms、網路與餘裕 30 ms；接著量測端到端延遲分布，根據結果調整各階段預算；p99 由端到端資料直接計算。</p>
 <p>異步事件流負責更新近期次數、裝置變動等時間窗口特徵，按事件時間處理亂序並設定 watermark／允許遲到範圍。即時風險的當次交易若已被算入特徵，離線重建時也要同樣計入；若訓練採「交易發生前」狀態，線上就不能先更新再讀。這種一個事件的偏移，足以讓離線和線上結果不一致。</p>
 <p>訓練資料要做 point-in-time correct join：在決策時刻只能用當時已可取得的資料。某事件雖然 event_time 很早，但 available_at 是隔天，也不可以回填到昨天的線上特徵。退款、拒付、人工判定可能數週後才成熟，不能作為當次交易的輸入。依時間切分訓練與測試，預處理只在訓練資料 fit；對同一帳戶或裝置跨分割的洩漏也應評估。資料洩漏的基本定義可核對 scikit-learn 官方文件。<a href="https://scikit-learn.org/stable/common_pitfalls.html#data-leakage">參考：Common pitfalls，Data leakage</a>。</p>
 <p>發布新模型時，先離線回測，再以影子流量比較，不改變真實處置；接著小比例灰度，監測延遲、特徵缺失、分數分布、人工量及成熟後的品質。保留模型、特徵、前處理和政策的完整相容版本，能一鍵回到經驗證版本。只替換模型檔案但沿用不相容特徵 schema，是常見的「部署成功、結果失真」。</p>
@@ -92,8 +92,8 @@ POST /v1/authorization/check
 
 <p>metrics 適合聚合數值與時間序列，logs 適合離散事件和診斷上下文，traces 連接一次工作跨服務的因果路徑。三者互補：從延遲指標發現問題，以 trace 找到慢依賴，再以受控日誌查細節。不能把每筆 trace 原封不動變成 metric label，否則序列數會失控。</p>
 <h4>二、估算與基數預算</h4>
-<p>假設一萬個實例，每個暴露一千條活躍序列，每十五秒收集一次，合計一千萬條序列、每秒約 666,667 個樣本。若只作教學粗估，每個壓縮後樣本平均兩 bytes，則每日樣本本體約 115.2 GB，十五天約 1.728 TB；這不是實際儲存保證，還要加標籤索引、WAL、副本、區塊 metadata 和壓縮差異。容量規劃應用實際負載量測。</p>
-<p>假設每實例每秒五 KB 日誌，全環境每秒五十 MB，一天約 4.32 TB，遠高於上面的樣本本體。trace 若尖峰每秒十萬請求、每請求十個 span、每 span 平均 500 bytes，尖峰完整保存速率是每秒約五百 MB；取樣 1% 後約每秒五 MB。只有假設此尖峰流量持續整日，才會得到約 432 GB／日的規劃上界；實際每日量應依流量曲線積分，不能直接把瞬時尖峰當成日平均。資料保留、取樣和索引策略必須在設計架構時決定，不能留到上線後再想。</p>
+<p>假設一萬個實例，每個暴露一千條活躍序列，每十五秒收集一次，合計一千萬條序列、每秒約 666,667 個樣本。若只作教學粗估，每個壓縮後樣本平均兩 bytes，則每日樣本本體約 115.2 GB，十五天約 1.728 TB；完整容量估算還需加入標籤索引、WAL、副本、區塊 metadata 和壓縮差異。容量規劃應用實際負載量測。</p>
+<p>假設每實例每秒五 KB 日誌，全環境每秒五十 MB，一天約 4.32 TB，遠高於上面的樣本本體。trace 若尖峰每秒十萬請求、每請求十個 span、每 span 平均 500 bytes，尖峰完整保存速率是每秒約五百 MB；取樣 1% 後約每秒五 MB。若尖峰流量持續整日，資料量約 432 GB；實際每日量依流量曲線積分。資料保留、取樣和索引策略必須在設計架構時決定，不能留到上線後再想。</p>
 <p>標籤組合會乘法成長：20 個 endpoint × 5 個狀態類型 × 3 個區域 × 100 個實例已有三萬條序列；再加一百萬個 user_id 就可能變成三百億種組合。URL 路徑應標準化為 /documents/{id}，不要包含真實文件 ID。Prometheus 官方 instrumentation 指南提醒每組標籤都會形成額外序列，應限制高基數維度。<a href="https://prometheus.io/docs/practices/instrumentation/">參考：Instrumentation</a>。</p>
 <h4>三、API 與資料模型</h4>
 <pre><code>metric identity = tenant + name + canonical_label_set
