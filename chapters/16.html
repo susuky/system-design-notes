@@ -2,19 +2,19 @@
 <header><p class="eyebrow">CHAPTER 16 · Practice, part 2</p><h2>實戰二：風險判斷、身份邊界與可觀測性</h2><p class="chapter-intro">這三題考驗三種不同的正確性：詐欺偵測要面對不確定性，認證授權要維持安全邊界，監控則要在系統出事時仍提供可信訊號。共同原則是把資料流、失效行為和驗收方式說完整。</p></header>
 <section><h3 id="c16-guidelines">16.1 Guidelines：先找出最不能犯的錯</h3>
 <p>設計前先問：錯誤結果的代價是什麼？錯擋一筆正常交易與漏掉一筆詐欺的代價不同；把有效使用者登出與讓外人讀到租戶文件的代價不同；晚到一分鐘的 CPU 指標與完全漏發事故告警的代價也不同。系統設計不能把它們全部塞進「99.9% 成功率」。</p>
-<p>每題先畫權威來源和信任邊界，再畫快路徑與慢路徑。快路徑滿足即時要求，慢路徑負責回補、審核、訓練、分析或修復。最後提出一項能否定自己方案的測試。如果任何故障都被回答成「再重試一次」，通常代表缺少冪等、截止時間、隔離或人類決策的設計。</p>
+<p><mark>每題先畫權威來源和信任邊界，再畫快路徑與慢路徑</mark>。快路徑滿足即時要求，慢路徑負責回補、審核、訓練、分析或修復。最後提出一項能否定自己方案的測試。如果任何故障都被回答成「再重試一次」，通常代表缺少冪等、截止時間、隔離或人類決策的設計。</p>
 
 </section>
 <section><h3 id="c16-fraud-detection">16.2 Fraud detection system：在截止時間內提供可解釋的風險訊號</h3>
 <h4>一、需求：把評分與最終處置分開</h4>
 <p>假設服務為交易平台評估每筆交易的詐欺風險。核心功能是低延遲產生風險分數、規則命中原因、使用的模型與特徵版本，以及建議的下一步，例如正常流程、追加驗證或人工審核。付款執行由交易系統負責；風險服務不直接操作資金，也不因一個模型分數就宣稱某人「確定詐欺」。重要或具爭議的處置需有審核、申訴與稽核軌跡。</p>
-<p>要求 p99 評估延遲小於 150 ms、每次請求可追蹤、相同評估 ID 的重試得到相同已定結果；模型迭代不能悄悄改寫歷史決策。可在背景加入後續調查，但必須保存「當時知道什麼」和「後來補充什麼」。資料收集限於必要且有授權的訊號，保留期限和存取權限獨立設定。</p>
+<p>要求 p99 評估延遲小於 150 ms、每次請求可追蹤、<mark>相同評估 ID 的重試得到相同已定結果</mark>；模型迭代不能悄悄改寫歷史決策。可在背景加入後續調查，但必須保存「當時知道什麼」和「後來補充什麼」。資料收集限於必要且有授權的訊號，保留期限和存取權限獨立設定。</p>
 <h4>二、估算：分類指標與人力也是容量</h4>
 <p>假設每日一千萬筆交易，日均約 115.7 次／秒，預留尖峰 2,000 次／秒。每筆原始事件平均 1 KB，約 10 GB／日，三十日約 300 GB 邏輯資料，不含副本、特徵、索引和模型產物。每次評估最多讀五組特徵，最壞尖峰就是每秒一萬次特徵讀取；批次讀取和本地快取有助降低往返，但不能把過期或未授權資料混入決策。</p>
-<p>若詐欺基準率是 0.1%，每日真實詐欺約一萬筆。某模型召回率 80%、正常交易誤報率 1%，將得到約八千個真陽性，卻也有 99,900 個假陽性，警報精確率約 7.4%。因此「準確率 99%」幾乎無法回答業務問題。要一起看 precision、recall、PR 曲線、金額或損失加權結果、正常用戶被打擾的比例，以及不同情境的校準程度。</p>
+<p>若詐欺基準率是 0.1%，每日真實詐欺約一萬筆。某模型召回率 80%、正常交易誤報率 1%，將得到約八千個真陽性，卻也有 99,900 個假陽性，<mark>警報精確率約 7.4%</mark>。因此「準確率 99%」幾乎無法回答業務問題。要一起看 precision、recall、PR 曲線、金額或損失加權結果、正常用戶被打擾的比例，以及不同情境的校準程度。</p>
 <p>假設人工團隊一百人，每人每天能完成六十個案件，總容量六千件／日。若把上述十萬多個警報全部送人工，系統架構再快也救不了隊列。需要分級、追加驗證、具體理由與取樣稽核，並由風險與業務負責人決定可接受政策；不能單純提高閾值到「剛好六千」就宣稱品質不變。人工審核量、等待年齡和申訴處理時間都應是 SLO。</p>
 <h4>三、API 與資料：每個判斷都有版本</h4>
-<pre><code>POST /v1/risk-evaluations
+<pre><code class="language-http">POST /v1/risk-evaluations
 { "evaluation_id": "ev_...", "transaction_id": "tx_...",
   "event_time": "...", "amount_minor": 125000, "currency": "TWD",
   "account_ref": "acct_...", "device_ref": "dev_..." }
@@ -33,10 +33,10 @@ POST /v1/review-outcomes
 <figure class="diagram"><svg viewBox="0 0 950 290" role="img" aria-labelledby="c16-fraud-title"><title id="c16-fraud-title">風險架構：即時特徵與模型評估，事件與審核結果進入離線驗證和版本發布</title><defs><marker id="c16-fraud-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs><g fill="none" stroke="currentColor" stroke-width="2"><rect x="15" y="45" width="150" height="65" rx="10"/><rect x="220" y="45" width="190" height="65" rx="10"/><rect x="475" y="45" width="180" height="65" rx="10"/><rect x="725" y="45" width="205" height="65" rx="10"/><rect x="220" y="200" width="190" height="65" rx="10"/><rect x="475" y="200" width="180" height="65" rx="10"/><rect x="725" y="200" width="205" height="65" rx="10"/><path d="M165 78H215 M410 78H470 M655 78H720 M315 195V115 M827 115V195 M720 233H660 M475 233H415" marker-end="url(#c16-fraud-arrow)"/></g><g fill="currentColor" font-size="18" text-anchor="middle"><text x="90" y="84">交易請求</text><text x="315" y="84">線上特徵／品質</text><text x="565" y="84">規則＋版本模型</text><text x="827" y="84">評估／驗證／審核</text><text x="315" y="240">事件流／特徵更新</text><text x="565" y="240">離線訓練與驗證</text><text x="827" y="240">延遲標籤與回饋</text></g></svg><figcaption>審核結果與成熟標籤進入離線驗證，模型發布時綁定特徵與政策版本。</figcaption></figure>
 <p>在線流程先做 schema 驗證、授權與評估去重，再平行讀取有限的特徵組、計算廉價規則，使用固定版本模型推論，最後由政策層結合分數、原因和資料品質產生建議。總預算 150 ms 可先粗分入口與去重 15 ms、特徵取得 45 ms、推論 25 ms、政策與持久化 35 ms、網路與餘裕 30 ms；接著量測端到端延遲分布，根據結果調整各階段預算；p99 由端到端資料直接計算。</p>
 <p>異步事件流負責更新近期次數、裝置變動等時間窗口特徵，按事件時間處理亂序並設定 watermark／允許遲到範圍。即時風險的當次交易若已被算入特徵，離線重建時也要同樣計入；若訓練採「交易發生前」狀態，線上就不能先更新再讀。這種一個事件的偏移，足以讓離線和線上結果不一致。</p>
-<p>訓練資料要做 point-in-time correct join：在決策時刻只能用當時已可取得的資料。某事件雖然 event_time 很早，但 available_at 是隔天，也不可以回填到昨天的線上特徵。退款、拒付、人工判定可能數週後才成熟，不能作為當次交易的輸入。依時間切分訓練與測試，預處理只在訓練資料 fit；對同一帳戶或裝置跨分割的洩漏也應評估。資料洩漏的基本定義可核對 scikit-learn 官方文件。<a href="https://scikit-learn.org/stable/common_pitfalls.html#data-leakage">參考：Common pitfalls，Data leakage</a>。</p>
+<p>訓練資料要做 point-in-time correct join：<mark class="mark-blue">在決策時刻只能用當時已可取得的資料</mark>。某事件雖然 event_time 很早，但 available_at 是隔天，也不可以回填到昨天的線上特徵。退款、拒付、人工判定可能數週後才成熟，不能作為當次交易的輸入。依時間切分訓練與測試，預處理只在訓練資料 fit；對同一帳戶或裝置跨分割的洩漏也應評估。資料洩漏的基本定義可核對 scikit-learn 官方文件。<a href="https://scikit-learn.org/stable/common_pitfalls.html#data-leakage">參考：Common pitfalls，Data leakage</a>。</p>
 <p>發布新模型時，先離線回測，再以影子流量比較，不改變真實處置；接著小比例灰度，監測延遲、特徵缺失、分數分布、人工量及成熟後的品質。保留模型、特徵、前處理和政策的完整相容版本，能一鍵回到經驗證版本。只替換模型檔案但沿用不相容特徵 schema，是常見的「部署成功、結果失真」。</p>
 <h4>五、失效與取捨</h4>
-<p>特徵服務故障時，不可默默把缺失值當成零。回應要帶 degraded 和缺失原因，使用已驗證的降級政策；低風險情境可能追加驗證，高風險或重大處置可能等待人工。採取什麼動作由預先批准的風險政策決定，不能一律全放或全擋。模型逾時同理，應立即停止等待並使用受控替代路徑，而不是讓交易系統超時重試十次。</p>
+<p><mark class="mark-rose">特徵服務故障時，不可默默把缺失值當成零</mark>。回應要帶 degraded 和缺失原因，使用已驗證的降級政策；低風險情境可能追加驗證，高風險或重大處置可能等待人工。採取什麼動作由預先批准的風險政策決定，不能一律全放或全擋。模型逾時同理，應立即停止等待並使用受控替代路徑，而不是讓交易系統超時重試十次。</p>
 <p>標籤存在選擇偏差：被系統擋下的交易未必有後續結果，只有被調查的個案才有完整資料，不能把「未被發現」當成「確定正常」。審核人也可能出錯，需要分歧處理、抽樣覆核與品質指標。攻擊者會適應規則，分布也會因活動和季節改變，所以漂移監控與延遲成效評估是服務的一部分。原始研究對 ML 系統中的隱性資料依賴和回饋循環提供了重要警示。<a href="https://research.google/pubs/hidden-technical-debt-in-machine-learning-systems/">參考：Hidden Technical Debt in Machine Learning Systems</a>。</p>
 <p>資料安全上，盡量使用最小化的參照 ID，避免把支付憑證、完整敏感內容或無關個資送到模型日誌。細粒度授權、保存期限、加密與稽核適用於特徵和模型產物，不只是原始資料庫。模型品質也要按相關業務情境檢查，不能用總體平均掩蓋某些群體長期受到不合理誤報。</p>
 <h4>六、面試追問</h4>
@@ -51,12 +51,12 @@ POST /v1/review-outcomes
 <p>為多租戶文件平台設計登入、單一登入、工作階段、API 存取與文件權限。Authentication 回答「你是誰」；authorization 回答「你此刻能對這個物件做什麼」。OAuth 2.0 是授權框架，本身不能直接當作完整的終端使用者認證協定。OIDC 在 OAuth 2.0 上建立身份認證語意與 ID Token，應使用經驗證的實作而非自創登入協定。<a href="https://openid.net/specs/openid-connect-core-1_0.html">參考：OpenID Connect Core 1.0</a>。</p>
 <figure class="visual-explainer" id="visual-16-auth"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 440" role="img" aria-labelledby="visual-16-auth-title visual-16-auth-desc"><title id="visual-16-auth-title">每次存取都要驗證身份與資源權限</title><desc id="visual-16-auth-desc">每次敏感操作都必須把身份、租戶、資源與動作一起判斷。</desc><defs><marker id="visual-16-auth-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#127c79"/></marker></defs><rect width="960" height="100%" rx="16" fill="#fff"/><text x="32" y="42" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="26" font-weight="700" text-anchor="start" fill="#163b42">每次存取都要驗證身份與資源權限</text><text x="32" y="76" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#587078">每次敏感操作都必須把身份、租戶、資源與動作一起判斷。</text><rect x="32" y="135" width="260" height="125" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="50" y="167" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">1 · 驗證身份</text><text x="50" y="194" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">簽章／有效期／受眾</text><text x="50" y="218" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">取得 user = U</text><rect x="350" y="135" width="260" height="125" rx="12" fill="#eaf2fc" stroke="#387ac3" stroke-width="1.5"/><text x="368" y="167" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#387ac3">2 · 判斷權限</text><text x="368" y="194" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">租戶 T 的文件 D</text><text x="368" y="218" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">U 是否可執行 read？</text><rect x="668" y="135" width="260" height="125" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="686" y="167" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">3 · 資源操作</text><text x="686" y="194" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">允許才讀取資料</text><text x="686" y="218" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">記錄必要稽核資訊</text><path d="M292 184 L347 184" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-16-auth-arrow)"/><path d="M610 184 L665 184" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-16-auth-arrow)"/><rect x="350" y="295" width="578" height="77" rx="12" fill="#fdebef" stroke="#bd4354" stroke-width="1.5"/><text x="368" y="327" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#bd4354">身份有效，權限仍可拒絕</text><text x="368" y="354" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">例如文件屬於其他租戶，或權限已被撤銷。</text><rect x="24" y="378" width="912" height="44" rx="12" fill="#f0f5f6" stroke="none" stroke-width="1.5"/><text x="42" y="407" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="18" font-weight="700" text-anchor="start" fill="#127c79">Authentication 回答「你是誰」；Authorization 回答「你現在能做什麼」。</text></svg><figcaption>資源服務用已驗證的身份，查核目標文件的租戶、關係與當前權限，再執行操作。</figcaption></figure>
 
-<p>不變條件包括：任何文件操作都驗證資源所屬租戶與操作權限；無法確定敏感操作的授權時不放行；撤銷與離職停權具有明確生效上限；身份提供者回傳的 token 只在預期發行者、受眾和用途內使用。第一版委託成熟身份提供者管理使用者認證與 MFA，平台自己負責租戶成員、角色、文件關係和授權決策。</p>
+<p>不變條件包括：<mark>任何文件操作都驗證資源所屬租戶與操作權限</mark>；無法確定敏感操作的授權時不放行；撤銷與離職停權具有明確生效上限；身份提供者回傳的 token 只在預期發行者、受眾和用途內使用。第一版委託成熟身份提供者管理使用者認證與 MFA，平台自己負責租戶成員、角色、文件關係和授權決策。</p>
 <h4>二、估算假設</h4>
 <p>假設總帳戶二千萬、每日活躍一百萬，每位每天建立兩次工作階段，共二百萬次／日，平均約 23.1 次／秒，尖峰十倍約 231 次／秒。受保護的 API 峰值卻可能是每秒五萬次，所以不能把每次 API 都等同於一次完整登入。將認證流程、token 驗證與物件授權分開擴容。</p>
 <p>若當日二百萬個 session 紀錄各 400 bytes，邏輯資料約 0.8 GB；若保留多日或多裝置，應按實際未過期數估算。授權關係可能遠多於使用者數：一百萬使用者各加入十個群組、每群組再共享許多文件，必須分清直接成員關係、繼承和查詢模式。容量不只看 token 長度，還有政策變更扇出與撤銷傳播。</p>
 <h4>三、API、資料與 token 語意</h4>
-<pre><code>GET /login                  → 由後端建立受保護的登入交易並導向 IdP
+<pre><code class="language-http">GET /login                  → 由後端建立受保護的登入交易並導向 IdP
 GET /callback?code=...       → 驗證登入交易，交換 code，建立應用 session
 POST /logout                → 撤銷目前 session 與適用的 refresh grant
 POST /v1/authorization/check
@@ -68,13 +68,13 @@ POST /v1/authorization/check
 <p>憑證儲存依角色區分：平台自己簽發的高熵不透明 session ID，可只保存安全雜湊供比對；BFF 從 IdP 取得、之後還要拿去交換的 refresh token，必須可取回原值，因此以受控金鑰加密保存，並限制解密權限。IdP 負責它所簽發 token 的輪替與重用偵測；平台負責 session 生命週期、交換時機與本地撤銷。日誌只留必要識別碼與稽核狀態。</p>
 <p>ID Token 讓登入客戶端確認認證事件；access token 讓指定資源伺服器判定 API 存取。驗證時依 token 的用途套用對應的 issuer、audience、型別與 claims 規則。scope 決定可請求的操作範圍，文件的租戶歸屬與共享關係則由資源服務逐筆檢查。</p>
 <h4>四、架構與登入流程</h4>
-<p>瀏覽器採 BFF 登入流程，由後端保存 OAuth token、瀏覽器持有應用 session。登入交易先產生高熵 state、nonce 和 PKCE verifier，綁定發起登入的瀏覽器、預期 issuer、精確 redirect URI 與短效期；送至 IdP 的 challenge 採 S256。callback 先檢查並一次性領取登入交易，再用 verifier 交換 code；驗證 ID Token 的簽章、issuer、audience、有效時間與 nonce，最後建立新的應用 session ID。登入後的返回位置限制在允許的站內路徑。<a href="https://www.rfc-editor.org/rfc/rfc9700.html">RFC 9700</a> 與 <a href="https://www.ietf.org/ietf-ftp/rfc/rfc10017.html">RFC 10017</a> 分別說明 OAuth 安全與瀏覽器應用架構。</p>
+<p>瀏覽器採 BFF 登入流程，<mark class="mark-blue">由後端保存 OAuth token、瀏覽器持有應用 session</mark>。登入交易先產生高熵 state、nonce 和 PKCE verifier，綁定發起登入的瀏覽器、預期 issuer、精確 redirect URI 與短效期；送至 IdP 的 challenge 採 S256。callback 先檢查並一次性領取登入交易，再用 verifier 交換 code；驗證 ID Token 的簽章、issuer、audience、有效時間與 nonce，最後建立新的應用 session ID。登入後的返回位置限制在允許的站內路徑。<a href="https://www.rfc-editor.org/rfc/rfc9700.html">RFC 9700</a> 與 <a href="https://www.ietf.org/ietf-ftp/rfc/rfc10017.html">RFC 10017</a> 分別說明 OAuth 安全與瀏覽器應用架構。</p>
 <p>本例的 GET callback 使用 <code>__Host-session</code> cookie，屬性為 <code>Secure; HttpOnly; SameSite=Lax; Path=/</code>，不設定 Domain。登入交易 cookie 的 SameSite 也配合 callback 的傳輸方式；若 IdP 改用跨站 POST，需重新檢查 cookie 是否隨回呼送達。所有改變狀態的 API 驗證 CSRF token 與允許的 Origin；輸出跳脫和內容安全政策處理 XSS。<a href="https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html">參考：OWASP Session Management</a>。</p>
 <p>API 入口驗證 token，再由資源服務執行物件授權。RBAC 適合管理員、編輯者、唯讀者等粗粒度角色；ABAC 可納入資料分類、操作條件與可信的環境屬性；共享文件則可能需要關係式授權。把 policy decision point 和實際強制執行位置分清楚：就算中央政策服務判斷了，資源服務漏檢一次仍會造成越權。</p>
 <p>JWT 驗證必須限制允許的演算法、核對適當的 issuer 和 audience、驗證時間欄位，並使用預先信任的密鑰來源。不要跟著未信任 token 內任意提供的 URL 去抓金鑰。RFC 8725 討論演算法驗證與不同 JWT 用途混淆等風險。<a href="https://www.rfc-editor.org/rfc/rfc8725.html">參考：JSON Web Token Best Current Practices</a>。</p>
 <h4>五、撤銷、一致性與失效取捨</h4>
-<p>短效 JWT 能讓資源服務離線驗證，降低中央認證服務的流量與依賴；代價是「撤銷資料庫裡的 session」不會神奇地改變已簽發 JWT。若 access token 五分鐘後到期，再容許三十秒時鐘偏差，單靠到期的撤銷上限可能接近五分三十秒。若要求十秒內停權，必須有線上 introspection、session／user version 查詢、撤銷清單或其他能在十秒內傳播的機制，並處理快取與斷線情況。</p>
-<p>啟用 refresh token rotation 時，IdP 每次換發新 token 並讓舊 token 失效，保留關聯以偵測重用。BFF 對同一 session 採 single-flight 刷新，多個請求等同一個結果；多個 BFF 實例則以共享狀態協調，成功後用版本條件更新儲存的 token pair。若 IdP 已換發但回應遺失，依供應商明定的重送契約復原，必要時重做登入，避免無限重送舊 token 觸發整個 grant 撤銷。<a href="https://www.rfc-editor.org/rfc/rfc9700.html#section-4.14">RFC 9700 §4.14</a>。</p>
+<p>短效 JWT 能讓資源服務離線驗證，降低中央認證服務的流量與依賴；代價是「撤銷資料庫裡的 session」不會神奇地改變已簽發 JWT。若 access token 五分鐘後到期，再容許三十秒時鐘偏差，<mark>單靠到期的撤銷上限可能接近五分三十秒</mark>。若要求十秒內停權，必須有線上 introspection、session／user version 查詢、撤銷清單或其他能在十秒內傳播的機制，並處理快取與斷線情況。</p>
+<p>啟用 refresh token rotation 時，IdP 每次換發新 token 並讓舊 token 失效，保留關聯以偵測重用。<mark class="mark-blue">BFF 對同一 session 採 single-flight 刷新，多個請求等同一個結果</mark>；多個 BFF 實例則以共享狀態協調，成功後用版本條件更新儲存的 token pair。若 IdP 已換發但回應遺失，依供應商明定的重送契約復原，必要時重做登入，避免無限重送舊 token 觸發整個 grant 撤銷。<a href="https://www.rfc-editor.org/rfc/rfc9700.html#section-4.14">RFC 9700 §4.14</a>。</p>
 <p>登出先撤銷平台 session、停止其刷新，再依 IdP 的 grant 撤銷介面處理上游憑證。已發出的 access token 仍按前述新鮮度契約停止生效。<a href="https://www.rfc-editor.org/rfc/rfc7009.html">RFC 7009</a> 定義撤銷端點的請求與回應。</p>
 <p>簽署金鑰輪替時，新公鑰要先可取得，再開始簽新 token；舊公鑰保留至合法舊 token 的驗證窗口結束。資源服務快取 JWKS，遇到未知 kid 可受控更新，不能每個惡意 token 都觸發外部請求。若懷疑私鑰遭竊，緊急撤銷和一般輪替不同，可能必須立即阻擋舊 key，接受使用者重新登入的影響。</p>
 <p>授權快取鍵至少包括租戶、subject、action、resource 和相關政策版本。使用者被移出群組後，過期快取不能無界續命；必要時針對敏感寫入查權威狀態。認證提供者暫停時，既有低風險 session 是否可繼續使用，取決於 token、撤銷及授權新鮮度契約；管理員變更、分享機密文件和提升權限通常不能在無法確認時照常放行。</p>
@@ -94,9 +94,9 @@ POST /v1/authorization/check
 <h4>二、估算與基數預算</h4>
 <p>假設一萬個實例，每個暴露一千條活躍序列，每十五秒收集一次，合計一千萬條序列、每秒約 666,667 個樣本。若只作教學粗估，每個壓縮後樣本平均兩 bytes，則每日樣本本體約 115.2 GB，十五天約 1.728 TB；完整容量估算還需加入標籤索引、WAL、副本、區塊 metadata 和壓縮差異。容量規劃應用實際負載量測。</p>
 <p>假設每實例每秒五 KB 日誌，全環境每秒五十 MB，一天約 4.32 TB，遠高於上面的樣本本體。trace 若尖峰每秒十萬請求、每請求十個 span、每 span 平均 500 bytes，尖峰完整保存速率是每秒約五百 MB；取樣 1% 後約每秒五 MB。若尖峰流量持續整日，資料量約 432 GB；實際每日量依流量曲線積分。資料保留、取樣和索引策略必須在設計架構時決定，不能留到上線後再想。</p>
-<p>標籤組合會乘法成長：20 個 endpoint × 5 個狀態類型 × 3 個區域 × 100 個實例已有三萬條序列；再加一百萬個 user_id 就可能變成三百億種組合。URL 路徑應標準化為 /documents/{id}，不要包含真實文件 ID。Prometheus 官方 instrumentation 指南提醒每組標籤都會形成額外序列，應限制高基數維度。<a href="https://prometheus.io/docs/practices/instrumentation/">參考：Instrumentation</a>。</p>
+<p><mark>標籤組合會乘法成長</mark>：20 個 endpoint × 5 個狀態類型 × 3 個區域 × 100 個實例已有三萬條序列；再加一百萬個 user_id 就可能變成三百億種組合。URL 路徑應標準化為 /documents/{id}，不要包含真實文件 ID。Prometheus 官方 instrumentation 指南提醒每組標籤都會形成額外序列，應限制高基數維度。<a href="https://prometheus.io/docs/practices/instrumentation/">參考：Instrumentation</a>。</p>
 <h4>三、API 與資料模型</h4>
-<pre><code>metric identity = tenant + name + canonical_label_set
+<pre><code class="language-http">metric identity = tenant + name + canonical_label_set
 sample          = timestamp + value + type
 log             = timestamp + service + severity + trace_id + redacted_body
 span            = trace_id + span_id + parent_span_id + start + duration + attributes
@@ -110,8 +110,8 @@ POST /v1/telemetry/batch
         "reason": "label_limit", "retryable": false }</code></pre>
 <p>入口驗證租戶身份、schema、時間範圍、標籤數量與大小上限。上例將部分接受視為終局結果：已收下的 950 筆保留，50 筆被拒絕並計入損失量，生產者修正後續資料；同一 batch_id 重送回原摘要，避免重複計入已接受樣本。若要支援只重送部分資料，回應還需提供穩定項目 ID 或索引，以及各項是否可重試。採用 OTLP 時遵循其協定：收到帶 partial_success 的回應後，不重試整個請求。<a href="https://opentelemetry.io/docs/specs/otlp/">參考：OTLP Specification</a>。</p>
 <p>租戶查詢權限與資料寫入身份分開，遙測生產者只能寫入獲授權的租戶與訊號。</p>
-<p>counter 計算累積事件，程序重啟時會歸零，rate 要處理 reset；gauge 表示某時點狀態；histogram 保存分桶或相容的分布統計。跨實例計算分位數時，先對各時間序列求速率，再合併桶計數。以下 classic histogram 查詢按服務計算五分鐘 p99，保留桶界線 <code>le</code>：</p>
-<pre><code>histogram_quantile(
+<p>counter 計算累積事件，程序重啟時會歸零，rate 要處理 reset；gauge 表示某時點狀態；histogram 保存分桶或相容的分布統計。跨實例計算分位數時，<mark class="mark-blue">先對各時間序列求速率，再合併桶計數</mark>。以下 classic histogram 查詢按服務計算五分鐘 p99，保留桶界線 <code>le</code>：</p>
+<pre><code class="language-promql">histogram_quantile(
   0.99,
   sum by (service, le) (rate(http_request_duration_seconds_bucket[5m]))
 )</code></pre>
@@ -123,9 +123,9 @@ POST /v1/telemetry/batch
 <p>trace 的 head sampling 在請求開始就決定是否保留，簡單且成本可控，但可能丟掉後來才變慢的請求；tail sampling 等收到更多 span 再決定，可保留錯誤或慢請求，但需要緩衝、trace 一致路由和明確等待窗口。晚到或不完整 trace 必須可辨識。取樣率不同時，若要估算總量須理解加權和偏差，不能把被偏重保留的錯誤 trace 比例當成真實錯誤率。</p>
 <h4>五、告警設計與失效</h4>
 <p>告警從可採取行動的條件開始：文件在承諾時間內完成的比例、互動錯誤率和隊列最老年齡。CPU 高可以是線索，不一定值得立刻打擾人。以 99.9% 成功 SLO 為例，可接受錯誤率是 0.1%；若觀測錯誤率為 1%，錯誤預算燃燒率約為十倍。短窗口辨識快速事故，較長窗口確認持續性，實際門檻需配合流量、值班負荷和 SLO 窗口校正。</p>
-<p>每則 alert 以租戶、穩定 rule_id 與該警報的固定標籤識別；規則版本與目前量測值放在診斷資料，避免每次部署或數值變動都變成新警報。通知系統再依接收者、服務或區域分組，讓同組中各則 alert 保有獨立的觸發與恢復狀態。資料庫故障引起一百個服務報錯時，可保留使用者影響告警並抑制已確認的從屬雜訊。每個通知包含時間、影響、近期變更、runbook 與責任人；確認接手與事故恢復分開記錄。</p>
+<p><mark>每則 alert 以租戶、穩定 rule_id 與該警報的固定標籤識別</mark>；規則版本與目前量測值放在診斷資料，避免每次部署或數值變動都變成新警報。通知系統再依接收者、服務或區域分組，讓同組中各則 alert 保有獨立的觸發與恢復狀態。資料庫故障引起一百個服務報錯時，可保留使用者影響告警並抑制已確認的從屬雜訊。每個通知包含時間、影響、近期變更、runbook 與責任人；確認接手與事故恢復分開記錄。</p>
 <p>兩分鐘送達目標要涵蓋完整鏈路。假設抓取最多 15 秒、傳輸與攝入 10 秒、等待下次規則評估 15 秒、持續條件 30 秒、通知投遞 20 秒，合計 90 秒，還剩 30 秒吸收排程與網路變動。若規則本身要求持續五分鐘才觸發，就要另定目標起算點。以測試事件量測條件發生到接收端收到的時間，才能驗證這份預算。</p>
-<p>監控控制面和被監控系統不能完全同生共死。至少保留外部黑箱探測、獨立的關鍵通知路徑和端到端心跳。若監控資料攝入停止而儀表板維持最後數字，使用者應看見「資料過期」，不是穩定的綠燈。規則評估器缺數據時採何種狀態需逐條定義；缺少付款成功資料和缺少一台已退役測試機的指標，不能用同一個答案。</p>
+<p><mark>監控控制面和被監控系統不能完全同生共死</mark>。至少保留外部黑箱探測、獨立的關鍵通知路徑和端到端心跳。若監控資料攝入停止而儀表板維持最後數字，使用者應看見「資料過期」，不是穩定的綠燈。規則評估器缺數據時採何種狀態需逐條定義；缺少付款成功資料和缺少一台已退役測試機的指標，不能用同一個答案。</p>
 <p>若告警供應商回應逾時，不確定訊息是否已送達，就用穩定事件 ID 和冪等／去重機制重送；設上限、退避與備援目的地。單點通知成功回應也不等於人已看到，重要事故可以有經批准的升級路徑。對外部通知目的地的授權、值班排程和靜音時間要明確，不由監控系統任意猜測。</p>
 <h4>六、面試追問</h4>
 <details><summary>把所有資料都存起來，是否最安全？</summary><p>不一定。無限保存提高成本、敏感資料暴露和查詢負荷，也可能使關鍵訊號淹沒。按目的設定保留與解析度，先遮罩、限制索引欄位，對安全稽核與一般除錯採不同管道。刪除政策要覆蓋副本、備份和衍生資料，並由實際要求決定。</p></details>

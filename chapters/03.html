@@ -4,7 +4,7 @@
   <p class="chapter-lead">雲端沒有消除硬體，只是改變了誰負責管理它。理解資料和運算實際落在哪些故障域，以及資源如何被共享，才能回答「多放一份副本到底保護什麼」和「新增算力為什麼仍然變慢」。</p>
 
   <h3 id="ch03-regions-zones-datacenters-racks-servers">3.1 區域、可用區、資料中心、機櫃與伺服器（Regions, availability zones, data centers, racks, servers）</h3>
-  <p>部署地理位置會同時影響延遲、法規與契約限制、災難復原範圍、複寫成本和資源供應，畫架構圖時就需要考慮。先把故障域（failure domain）當作核心概念：一組可能被同一事件一起影響的資源。硬體層級可以幫助辨識故障域，但真實依賴還包括軟體版本、身份權限、網路出口與人員操作。</p>
+  <p>部署地理位置會同時影響延遲、法規與契約限制、災難復原範圍、複寫成本和資源供應，畫架構圖時就需要考慮。先把故障域（failure domain）當作核心概念：<mark>一組可能被同一事件一起影響的資源</mark>。硬體層級可以幫助辨識故障域，但真實依賴還包括軟體版本、身份權限、網路出口與人員操作。</p>
 <figure class="visual-explainer" id="visual-03-domains"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 510" role="img" aria-labelledby="visual-03-domains-title visual-03-domains-desc"><title id="visual-03-domains-title">副本位置決定容錯範圍</title><desc id="visual-03-domains-desc">故障域是可能一起失效的範圍；增加副本數之前，先看共享了什麼。</desc><defs><marker id="visual-03-domains-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#127c79"/></marker></defs><rect width="960" height="100%" rx="16" fill="#fff"/><text x="32" y="42" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="26" font-weight="700" text-anchor="start" fill="#163b42">副本位置決定容錯範圍</text><text x="32" y="76" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#587078">故障域是可能一起失效的範圍；增加副本數之前，先看共享了什麼。</text><rect x="25" y="110" width="910" height="304" rx="12" fill="#f4f8fa" stroke="#b7c8ce" stroke-width="1.5"/><text x="44" y="144" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#163b42">同一 Region（區域）</text><rect x="48" y="162" width="402" height="225" rx="12" fill="#fff" stroke="#8aaeb7" stroke-width="1.5"/><text x="66" y="194" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#163b42">可用區 A</text><rect x="510" y="162" width="402" height="225" rx="12" fill="#fff" stroke="#8aaeb7" stroke-width="1.5"/><text x="528" y="194" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#163b42">可用區 B</text><rect x="68" y="220" width="170" height="105" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="86" y="252" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">副本 1</text><text x="86" y="279" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">同一機櫃</text><rect x="252" y="220" width="170" height="105" rx="12" fill="#fff3d9" stroke="#ad6707" stroke-width="1.5"/><text x="270" y="252" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#ad6707">副本 2</text><text x="270" y="279" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">同一機櫃</text><rect x="540" y="220" width="332" height="105" rx="12" fill="#eaf2fc" stroke="#387ac3" stroke-width="1.5"/><text x="558" y="252" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#387ac3">副本 3</text><text x="558" y="279" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">分散可用區故障風險</text><text x="70" y="359" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#bd4354">機櫃供電故障可能一起失去 1、2</text><text x="540" y="359" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">仍共用區域級依賴</text><rect x="24" y="448" width="912" height="44" rx="12" fill="#f0f5f6" stroke="none" stroke-width="1.5"/><text x="42" y="477" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="18" font-weight="700" text-anchor="start" fill="#127c79">跨 AZ 分散基礎設施故障；歷史備份處理誤刪與壞更新。</text></svg><figcaption>副本 1、2 共用機櫃；副本 3 分散到另一個可用區。依序檢查供電、網路與區域級依賴。</figcaption></figure>
 
 <p><strong>區域（Region）：</strong>通常代表雲端供應商的一個地理服務範圍。不同區域的距離、服務可用性、容量、價格與政策可能不同。選擇區域時，先看主要使用者和資料來源在哪裡，再看資料駐留要求與所需服務。跨區域並不自動複寫所有資料，也不自動提供跨區域容錯；每項服務要個別確認。</p>
@@ -37,15 +37,15 @@
     <figcaption>圖 3-1。AZ 可包含多個資料中心；按目標故障範圍分散副本，並檢查共享依賴。</figcaption>
   </figure>
   <p>假設文件平台把三份任務副本放在同一台實體主機的三個 VM：這可讓部分程序問題互不影響，但主機故障仍會一次失去三份。移到三台主機，可改善主機層故障，卻仍可能共用同一機櫃；跨 AZ 才能抵抗某些 AZ 級事件。若三個 AZ 都同時部署相同有問題的程式，硬體分散又無法避免共同軟體失敗。因此，部署分批與權限隔離也是故障域設計。</p>
-  <p><strong>多可用區部署還需要故障後容量。</strong>假設平台尖峰需要每秒 120 份的處理能力，三個 AZ 各放每秒 40 份的安全容量。總量看似足夠，但一個 AZ 故障後只剩每秒 80 份，積壓會以每秒 40 份增加。若希望在失去一個 AZ 後不靠新增資源仍承受全負載，三區各需每秒 60 份，總容量為每秒 180 份。這裡的「安全容量」指已在延遲目標下驗證的容量，而非硬體極限。</p>
-  <pre><code>n 個等容量故障域，要求容忍其中 1 個完全失效：
+  <p><strong><mark>多可用區部署還需要故障後容量</mark>。</strong>假設平台尖峰需要每秒 120 份的處理能力，三個 AZ 各放每秒 40 份的安全容量。總量看似足夠，但一個 AZ 故障後只剩每秒 80 份，積壓會以每秒 40 份增加。若希望在失去一個 AZ 後不靠新增資源仍承受全負載，三區各需每秒 60 份，總容量為每秒 180 份。這裡的「安全容量」指已在延遲目標下驗證的容量，而非硬體極限。</p>
+  <pre><code class="language-formula">n 個等容量故障域，要求容忍其中 1 個完全失效：
 每域所需容量 ≥ 總尖峰負載 ÷ (n − 1)
 總部署容量 ≥ 總尖峰負載 × n ÷ (n − 1)
 3 個 AZ：倍率為 3/2 = 1.5；相對無故障需求多準備 50%
 2 個 AZ：倍率為 2/1 = 2；相對無故障需求多準備 100%</code></pre>
   <p>這份容量必須能透過路由切換、資料存取與健康的剩餘依賴實際使用。若事故後才開機，恢復路徑還會依賴建立資源、取得映像檔、套用設定與註冊服務。AWS 將依賴受損時仍靠既有資源繼續運作的做法稱為靜態穩定性（static stability）；預先部署容量，可減少恢復對控制平面的依賴。</p>
   <h4 id="ch03-quorum-placement">多數決副本要按故障域計算</h4>
-  <p>採用 Raft 這類多數決協定時，除了 worker 容量，還要確認故障後能否形成 quorum。固定成員組態有 N 個投票副本，需要 ⌊N/2⌋＋1 個正常且互通的副本才能推進提交。副本所在位置決定一個 AZ 故障會同時失去幾票；<a href="https://raft.github.io/raft.pdf">Raft 論文</a>以多數節點正常、彼此及與客戶端能通訊作為進展條件。</p>
+  <p>採用 Raft 這類多數決協定時，除了 worker 容量，還要確認故障後能否形成 quorum。固定成員組態有 N 個投票副本，<mark class="mark-blue">需要 ⌊N/2⌋＋1 個正常且互通的副本才能推進提交</mark>。副本所在位置決定一個 AZ 故障會同時失去幾票；<a href="https://raft.github.io/raft.pdf">Raft 論文</a>以多數節點正常、彼此及與客戶端能通訊作為進展條件。</p>
   <table>
     <thead><tr><th scope="col">投票副本配置</th><th scope="col">多數門檻</th><th scope="col">最壞單一 AZ 故障後</th><th scope="col">能否繼續提交</th></tr></thead>
     <tbody>
@@ -80,8 +80,8 @@
 
   <h4 id="ch03-physical-servers">實體伺服器：資源很具體，責任也很具體</h4>
   <p>實體伺服器（physical server / bare metal）讓你直接管理作業系統與較完整的硬體資源。優點是能細緻調整核心、裝置與資源配置，適合特殊硬體或長期穩定負載；代價是採購或租用容量、故障替換、韌體與系統更新、監測和備援都要安排。裸機不代表應用一定更快，因為瓶頸可能在資料庫、鎖或網路，而不是虛擬化開銷。</p>
-  <p>容量至少分四個軸。CPU 支撐計算和解碼；記憶體容納工作集、緩衝與頁面快取；儲存有容量、延遲、IOPS 和吞吐量；網路有頻寬、連線與封包處理限制。每個軸都可能先飽和。文件轉換尤其不能用原件大小直接估記憶體，壓縮文件展開、影像解碼與中間結果可能放大很多，必須量測峰值。</p>
-  <pre><code>教學主機：32 GiB RAM，為系統與安全餘裕保留 8 GiB
+  <p>容量至少分四個軸。CPU 支撐計算和解碼；記憶體容納工作集、緩衝與頁面快取；儲存有容量、延遲、IOPS 和吞吐量；網路有頻寬、連線與封包處理限制。每個軸都可能先飽和。<mark>文件轉換尤其不能用原件大小直接估記憶體</mark>，壓縮文件展開、影像解碼與中間結果可能放大很多，必須量測峰值。</p>
+  <pre><code class="language-formula">教學主機：32 GiB RAM，為系統與安全餘裕保留 8 GiB
 可用工作記憶體 = 24 GiB = 24,576 MiB
 假設每份工作峰值 600 MiB：floor(24,576 ÷ 600) = 40 份
 記憶體允許最多 40 份並行；工作池大小再依 CPU、磁碟與網路負載測試調整
@@ -97,14 +97,14 @@
   <h4 id="ch03-virtual-machines">虛擬機：以客體作業系統形成隔離與管理單位</h4>
   <p>虛擬機（virtual machine，VM）在虛擬化層提供的硬體介面上運行客體作業系統（guest OS）。每個 VM 有自己的核心與使用者空間，可採不同系統版本，也能以映像檔重建。虛擬化讓硬體分配更彈性，但實體主機、底層網路與儲存仍是共享或相依資源；兩個 VM 名稱不同，不能據此假定它們位於不同硬體故障域。</p>
   <p>雲端 VM 的 vCPU 是供應商定義的計量單位，不是普遍等同一個獨占實體核心。例如某些 EC2 類型將支援 SMT 的硬體執行緒表示為 vCPU，也有不同 CPU 架構與配置。比較機型時要看單核心效能、記憶體比例、持續或突發資源限制、網路與儲存額度，再用自己的轉換器量測。不能把 A 機型的二秒 CPU 成本不加檢查地套在 B 機型。</p>
-  <p>VM 適合需要長時間運行、作業系統控制或自訂二進位相依套件的 worker。對外宣稱「無狀態」的 VM，仍可能把重要文件暫存在本機。真正可替換的 worker 應能從持久任務紀錄重新取得輸入，將結果保存到約定儲存，並在成功確認後才讓任務離開待處理流程。本機 scratch 空間是加速工具，不應成為唯一資料來源。</p>
+  <p>VM 適合需要長時間運行、作業系統控制或自訂二進位相依套件的 worker。對外宣稱「無狀態」的 VM，仍可能把重要文件暫存在本機。真正可替換的 worker 應能從持久任務紀錄重新取得輸入，將結果保存到約定儲存，並在成功確認後才讓任務離開待處理流程。<mark>本機 scratch 空間是加速工具，不應成為唯一資料來源</mark>。</p>
   <p>還要分清楚執行個體與儲存的生命週期。某些網路區塊儲存可獨立於 VM 存活，但可能受限於特定 AZ；例如 EBS 卷與所掛載的 EC2 執行個體需要在同一 AZ。從另一區重啟 VM 並不代表原卷可以直接掛上去，仍需副本、快照或其他復原流程。不要用「資料在雲端」略過這種限制。</p>
   <p class="pitfall"><strong>常見誤區：</strong>認為 VM 快照等於完整、應用一致的備份。快照是否涵蓋記憶體、多磁碟一致性與外部資料庫，要看具體機制；即使磁碟可還原，外部通知已送出等副作用也不會跟著倒轉。</p>
   <p class="exercise"><strong>練習：</strong>你有兩台 VM，各跑一個資料庫副本，卻不知道底層主機或 AZ。可以宣稱能容忍一台實體主機故障嗎？</p>
   <details><summary>參考解答與推理</summary><p>不能只憑 VM 數量宣稱。先確認供應商可提供的放置或反親和性機制，以及副本實際故障域。即使確定在不同實體主機，仍需檢查儲存、仲裁、故障切換和剩餘容量。部署位置只是容錯鏈的一個條件。</p></details>
 
   <h4 id="ch03-containers">容器：打包、程序隔離與資源控制</h4>
-  <p>一般 Linux 容器（container）是經隔離與資源管理的程序集合；同一主機上的這類容器共享主機核心，而 VM 各有客體核心。映像檔（image）把應用程式與相依檔案打包，使發布與重建更可重現。容器不必內含一套獨立開機的作業系統核心，因此通常能更輕量地部署程序，但啟動速度與記憶體消耗仍取決於應用與環境。</p>
+  <p>一般 Linux 容器（container）是經隔離與資源管理的程序集合；<mark class="mark-blue">同一主機上的這類容器共享主機核心，而 VM 各有客體核心</mark>。映像檔（image）把應用程式與相依檔案打包，使發布與重建更可重現。容器不必內含一套獨立開機的作業系統核心，因此通常能更輕量地部署程序，但啟動速度與記憶體消耗仍取決於應用與環境。</p>
   <p>Linux namespaces 隔離程序看到的部分系統資源，cgroups 提供資源控制與計量；這些機制解決不同層面的問題。CPU 限額可能讓程序被節流，記憶體限制可能導致配置失敗或程序終止。只設定容器數量，不限制它們的資源，仍可能讓一個租戶的巨大文件耗盡整個主機。限制設得太低，可能把原本可成功的工作變成持續重試。</p>
   <p>對文件平台，一個合理部署單位是具有固定版本的轉換器映像，加上外部傳入的任務識別與最小授權。應用記錄轉換器版本，讓結果可以追溯；新版本先處理少量測試或低風險工作，驗證成功率、資源需求和結果品質後再擴大。不可變映像有助於知道跑的是什麼，卻不會自動確保 schema、外部相依服務或設定相容。</p>
   <p>處理不可信文件時，不應把預設容器當成萬無一失的沙箱。容器可能因核心漏洞、過高 capabilities、特權模式、掛載主機敏感路徑或可控制容器執行器而擴大影響。應避免不必要權限、使用唯讀根檔案系統和有限暫存、限制網路與資源，並依威脅模型考慮更強隔離。容器與 VM 也可搭配，讓部署方便與主機級隔離各自發揮作用。</p>
@@ -117,11 +117,11 @@
   <p>無伺服器（serverless）仍有伺服器，只是開發者通常不需以個別伺服器為主要管理單位。它可以涵蓋函式即服務（FaaS）、託管容器與資料服務等不同模式；本節以事件觸發函式說明。你交付程式與設定，由平台配置執行環境，依事件執行並在一定範圍內擴充。供應商的限制、計價與擴充規則因產品而異。</p>
   <p>這種模式適合短時、可重試、狀態外置、流量起伏大的工作，例如驗證檔案事件、產生小型縮圖或整理通知。大型轉檔若需要很長時間、特殊硬體、大型本機工作集或高持續利用率，就應比較長駐 worker 或託管批次運算。不能只根據「不用管理 VM」選擇，還要看執行時間、記憶體、暫存、payload、併發與網路等限制。</p>
   <p>冷啟動（cold start）包含準備新環境與應用初始化等工作；暖環境可能被重用，但不應依賴它永久存在。可重用的連線或不敏感快取有助於效能，唯一任務狀態仍應存於持久服務。也不能因一次呼叫結束後程序看似仍存活，就假定未等待完成的背景工作一定會繼續；具體生命週期需以供應商文件為準。</p>
-  <pre><code>教學假設：事件到達率 80 次／秒，平均每次執行 0.5 秒
+  <pre><code class="language-formula">教學假設：事件到達率 80 次／秒，平均每次執行 0.5 秒
 平均所需在途併發 ≈ 80 × 0.5 = 40
 若下游變慢，使平均執行時間升到 5 秒：80 × 5 = 400
 流量沒有增加，對併發與下游連線的壓力仍可能增加十倍</code></pre>
-  <p>自動擴充也可能放大下游壓力。如果四百個函式環境同時建立資料庫連線，而資料庫只適合較少並行操作，serverless 的擴充成功反而造成資料庫失敗。應設定併發界限、適當連線管理、佇列緩衝與重試策略。保留併發額度與預先初始化環境是不同概念：前者控制可用併發份額或上限，後者用來減少初始化等待；產品細節與費用要查當前文件。</p>
+  <p>自動擴充也可能放大下游壓力。如果四百個函式環境同時建立資料庫連線，而資料庫只適合較少並行操作，serverless 的擴充成功反而造成資料庫失敗。<mark>應設定併發界限、適當連線管理、佇列緩衝與重試策略</mark>。保留併發額度與預先初始化環境是不同概念：前者控制可用併發份額或上限，後者用來減少初始化等待；產品細節與費用要查當前文件。</p>
   <p>事件來源的投遞與確認語意也不會因為 FaaS 自動變成恰好一次。函式在寫入結果後、回報成功前逾時，事件可能再次出現；因此仍要以 job_id、事件版本與冪等結果處理重複。對資料保護與授權也一樣：較少基礎設施工作，不能取代租戶邊界和最小權限設計。</p>
   <p class="pitfall"><strong>常見誤區：</strong>認為 serverless 一定最便宜或能瞬間無限擴充。低使用量可能省掉閒置主機成本；高持續負載、初始化、網路與觀測費用可能改變結果。必須以相同流量、品質目標與總成本比較，並確認實際帳號配額與擴充速度。</p>
   <p class="exercise"><strong>練習：</strong>通知函式每次平均執行 0.2 秒，穩定到達率每秒 200 次。供應商變慢後，每次需要 2 秒。平均併發如何改變？為何只提高函式併發上限可能不夠？</p>
@@ -137,7 +137,7 @@
       <tr><td>Serverless 函式</td><td>函式程式、觸發、權限與有限資源設定</td><td>生命週期、配額、冷啟動、重複事件與下游容量</td><td>事件驗證、小型轉換、通知任務</td></tr>
     </tbody>
   </table>
-  <p>最實用的選擇順序是：先列工作時間與資源分布，再列隔離、狀態與故障需求，最後比較營運與成本。若團隊已有成熟容器平台，沿用它可能比另引入函式平台更簡單；若沒有長駐系統需求，託管事件處理也可能減少維護負擔。不要為了統一架構而強迫所有工作使用同一形式，也不要只為追求彈性而引入過多平台。</p>
+  <p>最實用的選擇順序是：<mark>先列工作時間與資源分布，再列隔離、狀態與故障需求，最後比較營運與成本</mark>。若團隊已有成熟容器平台，沿用它可能比另引入函式平台更簡單；若沒有長駐系統需求，託管事件處理也可能減少維護負擔。不要為了統一架構而強迫所有工作使用同一形式，也不要只為追求彈性而引入過多平台。</p>
   <p class="chapter-summary">先定位資料與共享依賴，再用故障後容量、多數決門檻、資源約束與實際量測選擇部署方案。</p>
 
   <h3 id="ch03-references">本章參考資料</h3>

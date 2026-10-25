@@ -290,7 +290,7 @@ class ContentTests(unittest.TestCase):
         for number, source in self.chapters.items():
             self.assertTrue(source in built, 'Stale or incomplete chapter ' + number)
         for name in ('styles.css', 'legacy-visuals.css', 'labs.css', 'app.js',
-                     'labs.js', 'visuals.js', 'labs.html'):
+                     'labs.js', 'visuals.js', 'labs.html', 'highlight.css', 'highlight.js'):
             self.assertTrue((ROOT / 'source' / name).read_text(encoding='utf-8') in built,
                             'Stale shared asset ' + name)
         shell = (ROOT / 'source/shell.html').read_text(encoding='utf-8')

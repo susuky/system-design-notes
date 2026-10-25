@@ -22,8 +22,8 @@
       </svg>
       <figcaption>佇列深度可能為零，卻仍有大量執行中或已失敗工作。監控必須涵蓋整個生命週期。</figcaption>
     </figure>
-    <p><strong>等待量怎麼算？</strong>在穩定、長期平均與邊界一致的條件下，平均系統內數量 L＝到達率 λ×平均停留時間 W。如果只看等待佇列，應用 Lq＝λ×Wq；如果把執行中也算進來，就使用端到端停留時間。例如假設每秒到達 12 件，平均排隊 30 秒，平均執行 2 秒，則等待中約 360 件，執行中約 24 件，總在途量約 384 件。L 與 W 都採同一段觀察期間的平均值。<a href="https://pubsonline.informs.org/doi/abs/10.1287/opre.9.3.383">來源：Little，A Proof for the Queuing Formula（1961）</a>。</p>
-    <p>FIFO 領取不等於 FIFO 完成：工作 A 需 30 秒，後領的 B 只需 1 秒，在兩名工作者下 B 會先完成。若文件 v2 不可被 v1 的遲到結果覆蓋，就要用版本檢查或按文件鍵序列處理。只說「底層是 FIFO」仍不足以保證結果正確。有多個生產者時，也要定義以何處的接受順序為準，不能把各自的本機時間當作全域順序。</p>
+    <p><strong>等待量怎麼算？</strong>在穩定、長期平均與邊界一致的條件下，<mark class="mark-blue">平均系統內數量 L＝到達率 λ×平均停留時間 W</mark>。如果只看等待佇列，應用 Lq＝λ×Wq；如果把執行中也算進來，就使用端到端停留時間。例如假設每秒到達 12 件，平均排隊 30 秒，平均執行 2 秒，則等待中約 360 件，執行中約 24 件，總在途量約 384 件。L 與 W 都採同一段觀察期間的平均值。<a href="https://pubsonline.informs.org/doi/abs/10.1287/opre.9.3.383">來源：Little，A Proof for the Queuing Formula（1961）</a>。</p>
+    <p><mark>FIFO 領取不等於 FIFO 完成</mark>：工作 A 需 30 秒，後領的 B 只需 1 秒，在兩名工作者下 B 會先完成。若文件 v2 不可被 v1 的遲到結果覆蓋，就要用版本檢查或按文件鍵序列處理。只說「底層是 FIFO」仍不足以保證結果正確。有多個生產者時，也要定義以何處的接受順序為準，不能把各自的本機時間當作全域順序。</p>
     <p class="pitfall"><strong>常見錯誤：</strong>把入列成功等同工作成功；只看 queue depth，不看最老工作年齡；把「移出等待佇列」當成可刪除最後一份證據；以重試後的重新入列時間掩蓋工作真正等待多久。應同時保存原始建立時間與本次排程時間。</p>
     <p class="source-note">機制參照：<a href="https://docs.python.org/3/library/queue.html">Python queue 文件</a>說明程序內同步佇列；<a href="https://www.rabbitmq.com/docs/reliability">RabbitMQ 可靠性指南</a>說明跨程序交付需要額外確認。</p>
     <details class="exercise"><summary>練習：儀表板顯示佇列已清空，可以宣布全批文件完成嗎？</summary><p>不可以。工作可能已被領取但仍在執行，也可能在重試計時器、死信或未知狀態。應以批次中的持久工作狀態統計，區分 succeeded、failed、cancelled 與尚未終結，並驗證預期數量，而不是只看一條佇列的深度。</p></details>
@@ -43,7 +43,7 @@
       <tr><td>降級或合併</td><td>可用最新進度覆蓋舊進度通知</td><td>不可擅自丟棄必須逐項處理的業務事件</td></tr>
       <tr><td>轉存持久佇列</td><td>有獨立容量與明確責任轉移</td><td>只是把上限搬到磁碟，仍需配額、延遲及滿載政策</td></tr>
     </tbody></table></div>
-    <p><strong>算例。</strong>假設有 10,000 格，起始為空，尖峰到達率 115.74 件／秒，服務率固定為 80 件／秒。忽略隨機波動，淨累積率為 35.74 件／秒，約 10,000÷35.74＝279.8 秒後填滿，僅約 4.66 分鐘。容量加倍只把時間加倍，沒有修復尖峰期間的服務不足。若每格描述符為 2 KiB，原始描述符占約 19.53 MiB；若誤把 5 MB 文件本體放進 10,000 格，單份資料總量已達 50 GB。</p>
+    <p><strong>算例。</strong>假設有 10,000 格，起始為空，尖峰到達率 115.74 件／秒，服務率固定為 80 件／秒。忽略隨機波動，淨累積率為 35.74 件／秒，約 10,000÷35.74＝279.8 秒後填滿，僅約 4.66 分鐘。<mark>容量加倍只把時間加倍，沒有修復尖峰期間的服務不足</mark>。若每格描述符為 2 KiB，原始描述符占約 19.53 MiB；若誤把 5 MB 文件本體放進 10,000 格，單份資料總量已達 50 GB。</p>
     <p>空佇列時，消費者應等待通知、長輪詢或依節奏退避，不要以 while empty 的忙等迴圈燒 CPU。滿佇列時，要在更靠近入口處限制新工作，不要等所有 HTTP 執行緒都堵在 put。多租戶還需每租戶配額或公平排程，否則一個租戶可占滿全部格子，讓其他租戶即使流量很低也無法提交。</p>
     <p class="pitfall"><strong>常見錯誤：</strong>把無界當作沒有上限；佇列越長越安全；拒絕後讓客戶端立即重試；只設項目數上限而不限制單項大小。佇列還應受等待期限約束：即使仍有空間，如果新工作預估等待已超過承諾，也該拒絕、延後或明確降級。</p>
     <details class="exercise"><summary>練習：到達率持續每秒 120 件，處理率只有 100 件。把容量從一萬加到十萬，能達成長期穩定嗎？</summary><p>不能。淨累積每秒 20 件，從空到滿分別約 500 秒與 5,000 秒。要長期穩定，必須降低接納率、增加有效服務率、減少每件工作，或改變可接受工作集合。容量只吸收有限時間的差額。</p></details>
@@ -53,7 +53,7 @@
     <h3 id="c06-start-simple">6.3 從簡單方案開始（Start with something simple）</h3>
     <p>簡單方案也要處理故障。目標是用最少的部件滿足目前契約。若只是可丟棄的本機預覽，一個有界記憶體佇列與固定工作池可能足夠；若平台已承諾接受的文件工作能在重啟後找回，就至少需要持久工作紀錄。初期可先用既有關聯式資料庫的 jobs 表，不必立即新增一整套訊息叢集。</p>
     <p>工作表至少保存 tenant_id、job_id、document_version、state、available_at、attempts、lease_until、lease_token、created_at。提交 API 在同一交易中保存業務工作與可供領取的狀態。工作者用<strong>短交易</strong>領取，再在交易之外做昂貴辨識，避免長時間持有資料庫鎖。PostgreSQL 的 SKIP LOCKED 可略過其他工作者鎖定的資料列，官方明確指出它可用於 queue-like table，但會產生不完整視圖，不是一般一致性查詢的萬用選項。<a href="https://www.postgresql.org/docs/18/sql-select.html#SQL-FOR-UPDATE-SHARE">來源：PostgreSQL SELECT 鎖定條款</a>。</p>
-    <pre><code>BEGIN;
+    <pre><code class="language-sql">BEGIN;
 SELECT tenant_id, job_id
 FROM jobs
 WHERE (state = 'queued' AND available_at &lt;= now())
@@ -70,7 +70,7 @@ WHERE tenant_id = :selected_tenant_id AND job_id = :selected_job_id
 RETURNING lease_token;
 COMMIT;
 -- 交易外執行；完成提交時原子檢查 tenant_id + job_id + lease_token</code></pre>
-    <p>工作以（tenant_id, job_id）為唯一鍵，lease_token 與 attempts 從 0 起算。提交領取交易後，資料列鎖便釋放，後續擁有權由租約與 token 維持。queued 與 running 工作分別需要適合 available_at、lease_until 篩選的索引；輪詢與重試再按租戶限制。租約依工作時間設定，長工作定期續租；達重試上限要轉成可觀察的終止／人工處理狀態。完成時以 tenant_id、job_id、lease_token 及 state = running 作原子條件更新，並在同一交易寫入結果與後續 outbox；若影響列數為零，代表擁有權已變更，舊工作者不能提交。如果先寫外部物件，應使用版本化暫存結果，未被引用者再由清理機制回收。</p>
+    <p>工作以（tenant_id, job_id）為唯一鍵，lease_token 與 attempts 從 0 起算。提交領取交易後，資料列鎖便釋放，後續擁有權由租約與 token 維持。queued 與 running 工作分別需要適合 available_at、lease_until 篩選的索引；輪詢與重試再按租戶限制。租約依工作時間設定，長工作定期續租；達重試上限要轉成可觀察的終止／人工處理狀態。<mark class="mark-blue">完成時以 tenant_id、job_id、lease_token 及 state = running 作原子條件更新</mark>，並在同一交易寫入結果與後續 outbox；若影響列數為零，代表擁有權已變更，舊工作者不能提交。如果先寫外部物件，應使用版本化暫存結果，未被引用者再由清理機制回收。</p>
     <p><strong>故障時間線。</strong>工作者 A 取得 token 7，暫停超過租約；B 接管取得 token 8。稍後 A 恢復，即使它手上結果正確，也不能用舊 token 覆蓋 B。對「是否允許舊持有人完成」可以設不同契約，但必須用原子條件提交實作；單純在記憶體裡檢查一次到期時間不夠。</p>
     <p>本平台起初可使用四名工作者，每名完整占一核心、平均每份 2 CPU-seconds，理想能力只有每秒 2 份，明顯低於日均 11.57 份，故這個小配置只能用於開發或小流量試點。簡單方案是否夠用，要用負載來判斷；光看元件名字無法決定。若資料庫領取延遲、輪詢成本、積壓、保留量或跨服務扇出超過預算，再加入專用代理；沿用既有 job_id、冪等與狀態介面可降低遷移風險。</p>
     <p class="pitfall"><strong>常見錯誤：</strong>在整段 OCR 期間持有資料列鎖；領取後立即刪除工作；以 SKIP LOCKED 宣稱嚴格全域 FIFO；只新增代理卻保留 API 雙寫漏洞。代理不會自動讓資料庫更新與訊息發布成為同一交易。</p>
@@ -80,8 +80,8 @@ COMMIT;
   <section aria-labelledby="c06-blocking-producer-consumer">
     <h3 id="c06-blocking-producer-consumer">6.4 阻塞佇列與生產者—消費者模式（Blocking queue and producer-consumer pattern）</h3>
     <p>現在把視角縮回單一程序。解析上傳、讀取物件與文字辨識可能是不同階段；前一階段產生工作，後一階段消費。阻塞佇列在空時讓 get 等待，在滿時讓 put 等待，使兩端不必自己寫忙等。它提供的是執行緒間的協調，並不自動具備程序崩潰後的保存能力。</p>
-    <p>核心是互斥鎖（mutex）加條件變數（condition variable）。等待時要原子地釋放鎖並睡眠，醒來再取得鎖；條件判斷使用 while，不使用 if，因為被叫醒時條件可能已被另一個執行緒改變，也可能有虛假喚醒。不要在持有佇列鎖時執行辨識，否則其他執行緒連放取工作都會被阻擋。<a href="https://docs.oracle.com/en/java/javase/24/docs/api/java.base/java/util/concurrent/locks/Condition.html">機制參照：Java Condition 的等待與虛假喚醒契約</a>。</p>
-    <pre><code>put(item):
+    <p>核心是互斥鎖（mutex）加條件變數（condition variable）。等待時要原子地釋放鎖並睡眠，醒來再取得鎖；<mark>條件判斷使用 while，不使用 if</mark>，因為被叫醒時條件可能已被另一個執行緒改變，也可能有虛假喚醒。不要在持有佇列鎖時執行辨識，否則其他執行緒連放取工作都會被阻擋。<a href="https://docs.oracle.com/en/java/javase/24/docs/api/java.base/java/util/concurrent/locks/Condition.html">機制參照：Java Condition 的等待與虛假喚醒契約</a>。</p>
+    <pre><code class="language-pseudocode">put(item):
     with lock:
         while count == capacity and not closed:
             not_full.wait(lock)
@@ -108,13 +108,13 @@ close():
     <p>這個版本定義為關閉後不再接受新項目，但允許消費者排空既有項目，最後返回 END。若需求是立即中止，必須另外定義未做工作如何保存、重送或標記取消。使用哨兵項目（sentinel）也可實作結束，但多名消費者需要明確傳播規則，且佇列已滿時生產者不能卡住到無法送入哨兵。</p>
     <p><strong>容量算例。</strong>假設載入後每份文件占 8 MiB，程序可給這條流水線 256 MiB，四名消費者各持有一份。如果佇列存完整載入內容，忽略所有其他記憶體後，最多也只有 256÷8−4＝28 格。這只是理想上限，解析暫存與複本會使可用值更小。若改為排 2 KiB 描述符，可以大幅減少等待區記憶體，但消費者真正載入後的 32 MiB 仍然存在。</p>
     <p>Python 的 task_done／join 可追蹤已取出的項目是否完成了本機的工作記帳，但不應把它們當成跨服務成功保證。<a href="https://docs.python.org/3/library/queue.html#queue.Queue.task_done">來源：Queue 工作追蹤</a>。消費者需在 finally 做平衡記帳，另把失敗送到明確的重試或錯誤通道；否則 join 可能永久等待，或雖然返回卻有工作失敗未被呈現。</p>
-    <p class="pitfall"><strong>常見錯誤：</strong>滿時一邊持有別的資源鎖一邊等待，形成鎖順序死結；每處理一項就新建一條執行緒；失敗後把工作無限送回同一個已滿佇列。消費者自己回填滿佇列、而所有消費者都同樣阻塞時，沒有任何人能再取出項目。</p>
+    <p class="pitfall"><strong>常見錯誤：</strong>滿時一邊持有別的資源鎖一邊等待，形成鎖順序死結；每處理一項就新建一條執行緒；失敗後把工作無限送回同一個已滿佇列。<mark class="mark-rose">消費者自己回填滿佇列、而所有消費者都同樣阻塞時，沒有任何人能再取出項目</mark>。</p>
     <details class="exercise"><summary>練習：為什麼條件變數 wait 返回後還要重新檢查佇列是否為空？</summary><p>通知只表示某個時間點可能有進展，不會保留一件項目給特定醒來者。另一個消費者可能先拿走了工作；某些實作也允許虛假喚醒。while 重新檢查保護不變量；if 則可能從空佇列取出，造成錯誤或破壞狀態。</p></details>
   </section>
 
   <section aria-labelledby="c06-thread-pool">
     <h3 id="c06-thread-pool">6.5 執行緒池（Thread pool）</h3>
-    <p>阻塞佇列解決交接，執行緒池則決定同時有多少工作真正執行。固定池重用工作者，避免每項任務都付出建立與銷毀成本，也提供並行上限。真正需要配置的至少有三個數字：活動工作者數、待執行佇列容量，以及拒絕／等待期限；只調執行緒數而保留無界佇列，常把超載偽裝成越來越長的延遲。</p>
+    <p>阻塞佇列解決交接，執行緒池則決定同時有多少工作真正執行。固定池重用工作者，避免每項任務都付出建立與銷毀成本，也提供並行上限。真正需要配置的至少有三個數字：<mark>活動工作者數、待執行佇列容量，以及拒絕／等待期限</mark>；只調執行緒數而保留無界佇列，常把超載偽裝成越來越長的延遲。</p>
 <figure class="visual-explainer" id="visual-06-pool"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 500" role="img" aria-labelledby="visual-06-pool-title visual-06-pool-desc"><title id="visual-06-pool-title">執行緒池：限制進行中工作，也要限制等待區</title><desc id="visual-06-pool-desc">CPU 工作之外，還可能受記憶體、資料庫連線與下游配額限制。</desc><defs><marker id="visual-06-pool-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#127c79"/></marker></defs><rect width="960" height="100%" rx="16" fill="#fff"/><text x="32" y="42" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="26" font-weight="700" text-anchor="start" fill="#163b42">執行緒池：限制進行中工作，也要限制等待區</text><text x="32" y="76" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#587078">CPU 工作之外，還可能受記憶體、資料庫連線與下游配額限制。</text><rect x="32" y="130" width="230" height="100" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="50" y="162" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">入口</text><text x="50" y="189" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">容量檢查／拒絕策略</text><rect x="350" y="130" width="250" height="100" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="368" y="162" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">有界等待佇列</text><text x="368" y="189" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">例如最多 200 件</text><path d="M262 175 L347 175" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-06-pool-arrow)"/><rect x="695" y="110" width="230" height="84" rx="12" fill="#eaf2fc" stroke="#387ac3" stroke-width="1.5"/><text x="713" y="142" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#387ac3">工作者 1</text><text x="713" y="169" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">處理一件工作</text><rect x="695" y="220" width="230" height="84" rx="12" fill="#eaf2fc" stroke="#387ac3" stroke-width="1.5"/><text x="713" y="252" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#387ac3">工作者 2</text><text x="713" y="279" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">處理一件工作</text><rect x="695" y="330" width="230" height="84" rx="12" fill="#eaf2fc" stroke="#387ac3" stroke-width="1.5"/><text x="713" y="362" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#387ac3">工作者 N</text><text x="713" y="389" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">處理一件工作</text><path d="M600 180 L643 180 L643 152 L692 152" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-06-pool-arrow)"/><path d="M600 180 L643 180 L643 262 L692 262" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-06-pool-arrow)"/><path d="M600 180 L643 180 L643 372 L692 372" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-06-pool-arrow)"/><rect x="32" y="295" width="566" height="96" rx="12" fill="#fff3d9" stroke="#ad6707" stroke-width="1.5"/><text x="50" y="327" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#ad6707">佇列滿時，必須有明確契約</text><text x="50" y="354" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">阻塞／拒絕／丟棄／降級，各有不同使用者結果。</text><rect x="24" y="438" width="912" height="44" rx="12" fill="#f0f5f6" stroke="none" stroke-width="1.5"/><text x="42" y="467" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="18" font-weight="700" text-anchor="start" fill="#127c79">工作者數量有界，並不代表整個服務的記憶體使用量有界。</text></svg><figcaption>等待中的項目與執行中的工作各占一份資源，兩區都需要容量上限。</figcaption></figure>
 
 <p><strong>CPU 與等待分開算。</strong>假設一台機器有八個可用核心，一份工作需 2 CPU-seconds，全部資源都給獨立轉換時的理想上限是 8÷2＝4 份／秒。此處假設執行環境可同時利用八核心；若語言執行器限制 CPU 平行，還需選擇多程序等適合的方法。開 80 條 CPU 密集執行緒不會變成每秒 40 份，反而可能增加排程與快取成本。若工作平均占 CPU 10 ms、等待外部 I/O 90 ms，則在理想條件下，單個核心要維持忙碌可能需約十項在途工作；但這只是初始模型，仍受連線數、下游配額與記憶體限制。</p>
@@ -133,7 +133,7 @@ close():
 
   <section aria-labelledby="c06-big-compute">
     <h3 id="c06-big-compute">6.6 大型計算架構（Big compute architecture）</h3>
-    <p>當一台機器無法在期限內處理文件量，我們才把工作池擴展成跨機器計算。核心抽象仍未改變：有工作描述、有可用資源、有誰擁有執行權、有結果提交點。控制平面（control plane）管理任務與排程，資料平面（data plane）搬文件與中間結果；把兩者分開可避免大型文件把排程通道擠滿。</p>
+    <p>當一台機器無法在期限內處理文件量，我們才把工作池擴展成跨機器計算。核心抽象仍未改變：有工作描述、有可用資源、有誰擁有執行權、有結果提交點。<mark>控制平面（control plane）管理任務與排程，資料平面（data plane）搬文件與中間結果</mark>；把兩者分開可避免大型文件把排程通道擠滿。</p>
     <p>本平台把一項工作表示成有向無環圖（directed acyclic graph，DAG）：檢查原件 → 按頁辨識 → 彙整 → 建立索引／通知。只有在前置結果可用後才排下一階段。小文件可整份處理，超大文件可按頁或固定範圍分片；過細會增加排程與儲存操作成本，過粗則使少數慢分片控制全批完成時間。原始 MapReduce 論文展示了拆分工作、資料接近運算與慢任務備份等設計思路；本例以這些機制安排分片、資料讀取與慢任務接手。<a href="https://research.google.com/archive/mapreduce-osdi04.pdf">來源：Dean 與 Ghemawat，MapReduce 原始論文</a>。</p>
     <figure>
       <svg viewBox="0 0 880 260" role="img" aria-labelledby="c06-dag-title c06-dag-desc" style="width:100%;height:auto">

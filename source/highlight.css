@@ -1,0 +1,97 @@
+/* Reading highlights and code colors. */
+:root {
+  --marker-yellow: #f7e68a;
+  --marker-blue: #cbe9fc;
+  --marker-rose: #f8d0db;
+  --code-bg: #f4f6fb;
+  --code-border: #d8dfee;
+  --code-ink: #2c3550;
+  --code-comment: #5f6f86;
+  --code-keyword: #8741b1;
+  --code-string: #1b7358;
+  --code-number: #b04f1e;
+  --code-function: #1768b2;
+  --code-property: #9b3c5c;
+  --code-variable: #266f86;
+  --code-punctuation: #5c6982;
+}
+:root[data-theme=dark] {
+  --marker-yellow: #66551e;
+  --marker-blue: #234a64;
+  --marker-rose: #632f48;
+  --code-bg: #101827;
+  --code-border: #31415a;
+  --code-ink: #dce5f2;
+  --code-comment: #94a4bd;
+  --code-keyword: #cda1ff;
+  --code-string: #99d98c;
+  --code-number: #ffba87;
+  --code-function: #82caff;
+  --code-property: #ffb3c8;
+  --code-variable: #87dbdb;
+  --code-punctuation: #a5b7d1;
+}
+article h3 { color: var(--accent); }
+article mark {
+  --marker: var(--marker-yellow);
+  color: var(--ink);
+  background: linear-gradient(transparent 12%, var(--marker) 12%, var(--marker) 94%, transparent 94%);
+  padding: .04em .12em;
+  border-radius: 2px;
+  font-weight: 600;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+article mark.mark-blue { --marker: var(--marker-blue); }
+article mark.mark-rose { --marker: var(--marker-rose); }
+article :not(pre) > code { color: var(--code-keyword); }
+article mark code { background: transparent; color: inherit; }
+article pre {
+  color: var(--code-ink);
+  background: var(--code-bg);
+  border-color: var(--code-border);
+  border-left: 3px solid var(--code-function);
+  font-size: .85rem;
+  line-height: 1.85;
+  color-scheme: light;
+}
+:root[data-theme=dark] article pre { color-scheme: dark; }
+article pre code { color: inherit; }
+article pre .token.comment { color: var(--code-comment); font-style: italic; }
+article pre .token.keyword { color: var(--code-keyword); font-weight: 600; }
+article pre .token.string,
+article pre .token.attr-value { color: var(--code-string); }
+article pre .token.number,
+article pre .token.boolean,
+article pre .token.constant,
+article pre .token.null { color: var(--code-number); }
+article pre .token.function,
+article pre .token.url { color: var(--code-function); }
+article pre .token.property,
+article pre .token.operator { color: var(--code-property); }
+article pre .token.variable,
+article pre .token.attr-name { color: var(--code-variable); }
+article pre .token.punctuation { color: var(--code-punctuation); }
+@media (max-width: 650px) {
+  article pre { font-size: .78rem; padding: 17px; }
+}
+@media print {
+  :root, :root[data-theme=dark] {
+    --marker-yellow: #f7e68a;
+    --marker-blue: #cbe9fc;
+    --marker-rose: #f8d0db;
+    --code-bg: #f7f8fc;
+    --code-border: #cbd2df;
+    --code-ink: #202838;
+    --code-comment: #526077;
+    --code-keyword: #733195;
+    --code-string: #165c43;
+    --code-number: #963f17;
+    --code-function: #14568f;
+    --code-property: #87314f;
+    --code-variable: #205a6e;
+    --code-punctuation: #4b566a;
+  }
+  article mark, article pre { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  article pre, :root[data-theme=dark] article pre { color-scheme: light; font-size: 8pt; }
+}

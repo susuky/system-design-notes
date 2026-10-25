@@ -10,7 +10,7 @@
 
   <section aria-labelledby="c04-sync-async">
     <h3 id="c04-sync-async">4.1 同步與非同步通訊（Synchronous vs asynchronous communication）</h3>
-    <p>同步互動要求呼叫者在這次互動中取得所需結果，才能繼續依賴該結果的流程。例如使用者按下預覽，必須先取得第一頁圖片才有東西可看。非同步互動則把「提交要求」與「取得最終結果」拆成不同時間點：平台先回工作編號，稍後透過查詢、推送或回呼傳回結果。這是<strong>互動契約</strong>的差別，還不是執行緒是否被占住的差別。</p>
+    <p>同步互動要求呼叫者在這次互動中取得所需結果，才能繼續依賴該結果的流程。例如使用者按下預覽，必須先取得第一頁圖片才有東西可看。非同步互動則<mark>把「提交要求」與「取得最終結果」拆成不同時間點</mark>：平台先回工作編號，稍後透過查詢、推送或回呼傳回結果。這是<strong>互動契約</strong>的差別，還不是執行緒是否被占住的差別。</p>
     <p>因此，同一個 HTTP 請求可以同步取得「工作已被接受」的回應，而它代表的整項文件工作仍是非同步的。RFC 9110 定義的 202 Accepted 只表示已接受處理，並不表示處理完成，也不保證最終一定成功。平台應附上可查詢的工作資源，而不是把 202 翻譯成「文件已完成」。<a href="https://www.rfc-editor.org/rfc/rfc9110.html#section-15.3.3">來源：HTTP 202 的標準語意</a>。</p>
     <figure>
       <svg viewBox="0 0 850 220" role="img" aria-labelledby="c04-flow-title c04-flow-desc" style="width:100%;height:auto">
@@ -26,7 +26,7 @@
     </figure>
     <p><strong>從等待量推導設計。</strong>假設平均每秒提交 40 件，每件端到端處理平均 8 秒，且系統處於穩定狀態。以平均在途量＝到達率×平均停留時間估算，同步等待中的工作約為 40×8＝320 件。若提交階段平均只花 0.12 秒，提交請求的平均在途量降為 40×0.12＝4.8 件。這只計算提交請求，不含上傳連線、狀態輪詢與背景工作；它也沒有把 8 秒的服務時間縮短。這裡使用的是 Little 法則的長期平均關係；第六章會進一步區分等待區與整個系統。<a href="https://pubsonline.informs.org/doi/abs/10.1287/opre.9.3.383">來源：Little 的原始論文</a>。</p>
     <p>非同步能隔離尖峰與較長的服務時間，但增加狀態機、逾期政策與使用者介面成本。我們必須定義 queued、running、succeeded、failed、cancel_requested 等狀態，並回答取消是否只是盡力而為。同步流程較容易表達立即成功或失敗，卻會讓慢下游延長整條請求鏈。必須立即回覆的權限檢查採同步，耗時辨識採非同步。兩者各自配合需求，無須追求單一風格。</p>
-    <p><strong>故障案例。</strong>API 已提交工作紀錄，但回應在網路中遺失。客戶端逾時只知道「結果未知」，不能推論伺服器沒做事；用相同冪等鍵查詢或重試，才能避免產生第二份工作。若 API 只啟動記憶體中的背景函式便回 202，程序隨後重啟，這個承諾可能無從追蹤。平台應先持久保存足以恢復的工作意圖，再回應接受。</p>
+    <p><strong>故障案例。</strong>API 已提交工作紀錄，但回應在網路中遺失。<mark>客戶端逾時只知道「結果未知」，不能推論伺服器沒做事</mark>；用相同冪等鍵查詢或重試，才能避免產生第二份工作。若 API 只啟動記憶體中的背景函式便回 202，程序隨後重啟，這個承諾可能無從追蹤。平台應先持久保存足以恢復的工作意圖，再回應接受。</p>
     <p class="pitfall"><strong>常見錯誤：</strong>把非同步當作免等待、把 HTTP 當作只能同步、把客戶端取消當成伺服器已停止，以及將逾時直接記成業務失敗。這四者都忽略了觀察者所在的邊界。</p>
     <details class="exercise"><summary>練習：每秒 120 件，平均處理 3 秒；提交只需 0.15 秒。兩種平均在途量是多少？</summary><p>同步工作等待約 120×3＝360 件；提交階段約 120×0.15＝18 件。不能由此聲稱整體吞吐量提高二十倍：背景工作仍須提供每秒至少 120 件的長期處理能力，且輪詢也會新增負載。比較系統前，還要量測排隊時間與完成延遲。</p></details>
   </section>
@@ -43,8 +43,8 @@
       <tr><td>協調式流程（orchestration）</td><td>工作控制器依序安排掃描、辨識、彙整</td><td>控制器需持久狀態與恢復機制；也比較容易查明停在哪一步</td></tr>
     </tbody></table></div>
     <p>在發布訂閱中，「一個服務群共用一個訂閱」和「每個服務各自有訂閱」意義不同。若通知與索引工作者競爭同一工作佇列，它們可能各拿走部分事件，而不是每個服務都處理全部事件。RabbitMQ 的交換器與佇列綁定提供不同路由方式，但「每位邏輯訂閱者是否擁有自己的待處理副本」仍要由拓撲明確表達。<a href="https://www.rabbitmq.com/tutorials/amqp-concepts">來源：RabbitMQ 的 AMQP 模型</a>。</p>
-    <p><strong>用 outbox 保存投遞意圖。</strong>辨識完成後，若先更新資料庫、再發布事件，兩步之間崩潰會造成「資料完成但沒人通知」；反過來先發事件，則可能通知一個尚未成立的結果。因此在同一資料庫交易中，寫入工作結果與 outbox 待發紀錄。轉送程序稍後發布 outbox，完成預定路由的確認後才標記已發送。若發布成功但標記前崩潰，事件會再次投遞，消費者以同一 event_id 去重。</p>
-    <pre><code>// 概念偽碼：兩筆寫入在同一個本機資料庫交易
+    <p><strong>用 outbox 保存投遞意圖。</strong>辨識完成後，若先更新資料庫、再發布事件，兩步之間崩潰會造成「資料完成但沒人通知」；反過來先發事件，則可能通知一個尚未成立的結果。因此<mark class="mark-blue">在同一資料庫交易中，寫入工作結果與 outbox 待發紀錄</mark>。轉送程序稍後發布 outbox，完成預定路由的確認後才標記已發送。若發布成功但標記前崩潰，事件會再次投遞，消費者以同一 event_id 去重。</p>
+    <pre><code class="language-pseudocode">// 概念偽碼：兩筆寫入在同一個本機資料庫交易
 transaction:
     update_job(tenant_id, job_id, state="SUCCEEDED", result_ref=result_ref)
     insert outbox(event_id, tenant_id, job_id, document_id, version, "DocumentProcessed")
@@ -57,7 +57,7 @@ commit
 
   <section aria-labelledby="c04-network-protocols">
     <h3 id="c04-network-protocols">4.3 網路協定（Network protocols）</h3>
-    <p>協定提供的是特定層次的契約。傳輸層處理端點間的資料傳送，應用層定義要求、回應與訊息結構。TLS 處理加密與對端驗證；它不會替業務判定租戶能否下載某份文件。設計時把可靠傳輸、保密、授權和業務成功分別寫出，才不會用「我們有 HTTPS」回答所有問題。</p>
+    <p>協定提供的是特定層次的契約。傳輸層處理端點間的資料傳送，應用層定義要求、回應與訊息結構。TLS 處理加密與對端驗證；它不會替業務判定租戶能否下載某份文件。設計時把<mark>可靠傳輸、保密、授權和業務成功分別寫出</mark>，才不會用「我們有 HTTPS」回答所有問題。</p>
     <div class="table-wrap"><table><caption>本平台可能用到的協定及其邊界</caption><thead><tr><th scope="col">協定</th><th scope="col">提供什麼</th><th scope="col">不應推論什麼</th></tr></thead><tbody>
       <tr><td>TCP</td><td>可靠、有序的位元組串流</td><td>沒有保留應用訊息邊界；一次 send 不對應一次 recv；傳輸確認不是資料庫提交</td></tr>
       <tr><td>UDP</td><td>保留資料報邊界的傳輸</td><td>本身不提供可靠重送或排序；應用若需要就必須另外實作</td></tr>
@@ -74,14 +74,14 @@ commit
 
   <section aria-labelledby="c04-blocking-io">
     <h3 id="c04-blocking-io">4.4 阻塞與非阻塞 I/O（Blocking vs non-blocking I/O）</h3>
-    <p>阻塞（blocking）描述呼叫在等待條件成立時，呼叫它的執行緒是否被占住。非阻塞（non-blocking）呼叫則會在暫時無法進行時迅速返回，例如回傳 EAGAIN，讓程式稍後再試。這和 4.1 的同步／非同步業務互動是兩個維度：以背景執行緒呼叫阻塞 API，也能向上層提供非同步介面；反過來，以非阻塞 socket 實作的客戶端仍可同步等待最終業務結果。</p>
+    <p>阻塞（blocking）描述呼叫在等待條件成立時，呼叫它的執行緒是否被占住。<mark>非阻塞（non-blocking）呼叫則會在暫時無法進行時迅速返回</mark>，例如回傳 EAGAIN，讓程式稍後再試。這和 4.1 的同步／非同步業務互動是兩個維度：以背景執行緒呼叫阻塞 API，也能向上層提供非同步介面；反過來，以非阻塞 socket 實作的客戶端仍可同步等待最終業務結果。</p>
     <div class="table-wrap"><table><caption>不要把使用者等待與執行緒等待混為一談</caption><thead><tr><th scope="col">觀察層</th><th scope="col">真正要問的問題</th><th scope="col">平台例子</th></tr></thead><tbody>
       <tr><td>業務互動</td><td>這次回應是最終結果，還是接受工作？</td><td>立即回預覽圖，或先回工作編號</td></tr>
       <tr><td>程式 API</td><td>呼叫返回時操作已完成，還是稍後以 future／callback 通知？</td><td>等待儲存完成的 future</td></tr>
       <tr><td>執行緒／系統呼叫</td><td>無資料可讀時，執行緒睡眠等待還是立即返回？</td><td>阻塞 recv 或非阻塞 recv</td></tr>
     </tbody></table></div>
     <p>多路複用（multiplexing）讓一個事件迴圈監看許多描述符。以 Linux epoll 為例，ready 通知通常表示現在值得嘗試 I/O，並不是完整應用訊息已到齊，更不是業務完成。邊緣觸發（edge-triggered）模式需要特別維護尚未讀完的狀態；官方手冊建議使用非阻塞描述符，並在讀寫返回 EAGAIN 後才再次等待。<a href="https://man7.org/linux/man-pages/man7/epoll.7.html">來源：Linux epoll(7)</a>。</p>
-    <pre><code>// 示意：真實版本還須處理 EOF、錯誤、公平性與緩衝上限
+    <pre><code class="language-pseudocode">// 示意：真實版本還須處理 EOF、錯誤、公平性與緩衝上限
 on_readable(connection):
     loop:
         data = nonblocking_read(connection)
@@ -108,25 +108,25 @@ on_readable(connection):
       <tr><td>大量離線分析</td><td>依讀取形狀評估欄式儲存</td><td>這是檔案與分析布局需求，不宜只按 RPC 訊息格式選擇</td></tr>
     </tbody></table></div>
     <p><strong>故障案例。</strong>某租戶的文件編號超過 2<sup>53</sup>−1，JSON 本身可以寫出這個數字，但使用雙精度浮點數解析的程式可能失去整數精度。將不做算術的識別碼定為字串可避免這類跨語言陷阱；RFC 8259 也提醒不同實作對數值範圍和精度的互通限制。<a href="https://www.rfc-editor.org/rfc/rfc8259.html#section-6">來源：JSON Numbers</a>。</p>
-    <p>演進時先讓消費者接受新欄位，再由生產者發送，並測試舊訊息能否重放。Protobuf 刪除欄位後應保留其編號；重用編號可能使舊資料被解成另一種業務意義。<a href="https://protobuf.dev/programming-guides/editions/#deleting-fields">來源：Protobuf 刪除欄位規則</a>。即使是同一份語意資料，序列化位元組也不一定具有全域穩定順序；若要簽章或去重，需約定正規化形式，不要直接假設任意序列化輸出都相同。</p>
+    <p>演進時先讓消費者接受新欄位，再由生產者發送，並測試舊訊息能否重放。<mark>Protobuf 刪除欄位後應保留其編號</mark>；重用編號可能使舊資料被解成另一種業務意義。<a href="https://protobuf.dev/programming-guides/editions/#deleting-fields">來源：Protobuf 刪除欄位規則</a>。即使是同一份語意資料，序列化位元組也不一定具有全域穩定順序；若要簽章或去重，需約定正規化形式，不要直接假設任意序列化輸出都相同。</p>
     <p class="pitfall"><strong>常見錯誤：</strong>把格式大小比較當成端到端效能測試；認為新增欄位永遠無害；把解碼成功當作業務合法；允許無限深巢狀資料或壓縮後無上限解壓。解析後仍需驗證租戶、版本、大小與可接受值。</p>
     <details class="exercise"><summary>練習：把 page_count 改名為 pages，再沿用同一 protobuf 欄位編號，是否一定安全？</summary><p>二進位通道主要看編號與相容型別，因此單純改名可能不改變 wire format；但 JSON 表示、反射、監控、程式碼與業務語意仍可能受影響。若連意義也改了，例如由總頁數改成已處理頁數，就應另建欄位並規劃遷移，不能以位元組相容代替語意相容。</p></details>
   </section>
 
   <section aria-labelledby="c04-acknowledgment">
     <h3 id="c04-acknowledgment">4.6 訊息確認（Message acknowledgment）</h3>
-    <p>確認（acknowledgment，ACK）的意思取決於<strong>哪一層、哪個接收方、何時發出</strong>。TCP ACK 確認傳輸位元組；發布確認回報代理對該次發布的處理結果；消費者 ACK 通知代理可以結束這次投遞責任。使用者是否收到通知，則由通知服務的投遞狀態追蹤。</p>
+    <p>確認（acknowledgment，ACK）的意思取決於<strong><mark>哪一層、哪個接收方、何時發出</mark></strong>。TCP ACK 確認傳輸位元組；發布確認回報代理對該次發布的處理結果；消費者 ACK 通知代理可以結束這次投遞責任。使用者是否收到通知，則由通知服務的投遞狀態追蹤。</p>
 <figure class="visual-explainer" id="visual-04-ack"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 450" role="img" aria-labelledby="visual-04-ack-title visual-04-ack-desc"><title id="visual-04-ack-title">沒收到 ACK，並不能推論對方沒做事</title><desc id="visual-04-ack-desc">教學時間線：副作用已完成，只有確認訊號在途中遺失。</desc><defs><marker id="visual-04-ack-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#127c79"/></marker></defs><rect width="960" height="100%" rx="16" fill="#fff"/><text x="32" y="42" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="26" font-weight="700" text-anchor="start" fill="#163b42">沒收到 ACK，並不能推論對方沒做事</text><text x="32" y="76" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#587078">教學時間線：副作用已完成，只有確認訊號在途中遺失。</text><text x="125" y="123" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="middle" fill="#163b42">生產者／呼叫端</text><path d="M125 145 V353" stroke="#c3d4d8" stroke-dasharray="5 5"/><text x="770" y="123" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="middle" fill="#163b42">消費者／服務端</text><path d="M770 145 V353" stroke="#c3d4d8" stroke-dasharray="5 5"/><path d="M125 165 L770 165" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-04-ack-arrow)"/><text x="447.5" y="153.0" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="16" font-weight="400" text-anchor="middle" fill="#127c79">要求：扣除一次額度，id = K</text><rect x="580" y="193" width="310" height="83" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="598" y="225" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">副作用已提交</text><text x="598" y="252" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">額度已扣除</text><path d="M770 295 L460 295" fill="none" stroke="#127c79" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#visual-04-ack-arrow)"/><text x="615.0" y="283.0" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="16" font-weight="400" text-anchor="middle" fill="#127c79">ACK 遺失</text><text x="425" y="303" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="28" font-weight="700" text-anchor="start" fill="#bd4354">×</text><path d="M125 342 L770 342" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-04-ack-arrow)"/><text x="447.5" y="330.0" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="16" font-weight="400" text-anchor="middle" fill="#127c79">逾時後，用相同 id = K 重試</text><rect x="24" y="388" width="912" height="44" rx="12" fill="#f0f5f6" stroke="none" stroke-width="1.5"/><text x="42" y="417" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="18" font-weight="700" text-anchor="start" fill="#127c79">唯一鍵／交易或下游冪等契約，才能把重試與「再做一次」分開。</text></svg><figcaption>額度已扣除，只有 ACK 遺失。沿用相同冪等鍵重試，讀回第一次操作的結果。</figcaption></figure>
 
 <p>RabbitMQ 的 publisher confirms 與 consumer acknowledgements 分別追蹤發布與消費進度。手動 ACK 由應用程式決定確認時點；連線中斷後，未確認的投遞可能重排。發布者也會遇到「代理已接手，但確認回程遺失」的重送視窗。<a href="https://www.rabbitmq.com/docs/confirms">確認機制</a>與<a href="https://www.rabbitmq.com/docs/reliability">可靠性指南</a>說明了各自的責任。</p>
-    <p><strong>發布確認也要核對路由。</strong>RabbitMQ 即使判定訊息無法路由到任何佇列，也會送出 publisher ACK。使用 <code>mandatory=true</code> 時，代理會先送 <code>basic.return</code>，再送確認；發布者必須處理兩者。收到 return 的 outbox 紀錄應保留並排查 exchange、routing key 與 binding，只有取得符合路由與持久性契約的確認後才標記已發送。發布給多個必要訂閱時，還要驗證每個訂閱的綁定：mandatory 能偵測「完全無路由」，而缺少其中一個綁定需靠拓撲檢查與各訂閱進度偵測。</p>
+    <p><strong>發布確認也要核對路由。</strong><mark class="mark-rose">RabbitMQ 即使判定訊息無法路由到任何佇列，也會送出 publisher ACK</mark>。使用 <code>mandatory=true</code> 時，代理會先送 <code>basic.return</code>，再送確認；發布者必須處理兩者。收到 return 的 outbox 紀錄應保留並排查 exchange、routing key 與 binding，只有取得符合路由與持久性契約的確認後才標記已發送。發布給多個必要訂閱時，還要驗證每個訂閱的綁定：mandatory 能偵測「完全無路由」，而缺少其中一個綁定需靠拓撲檢查與各訂閱進度偵測。</p>
     <div class="table-wrap"><table><caption>在任意兩步之間拔掉電源，才看得出 ACK 的意義</caption><thead><tr><th scope="col">順序</th><th scope="col">故障視窗</th><th scope="col">後果與對策</th></tr></thead><tbody>
       <tr><td>先 ACK，再寫入結果</td><td>ACK 後、結果提交前崩潰</td><td>代理可能不再投遞，工作丟失；不適合必須完成的文件工作</td></tr>
       <tr><td>先寫入結果，再 ACK</td><td>結果提交後、ACK 前崩潰</td><td>工作可能重送；用持久冪等紀錄避免重複副作用</td></tr>
       <tr><td>先寄通知，再記已寄</td><td>供應商已接受，紀錄尚未提交</td><td>重試可能重寄；需供應商冪等鍵、狀態查詢或人工核對</td></tr>
     </tbody></table></div>
-    <p>辨識工作者將結果參照、工作完成狀態、事件冪等紀錄與通知 outbox 一起提交，之後才 ACK。重新投遞時若同一事件已完成，就讀回原結果。通知工作者另以穩定的通知 ID 處理外部寄送，並記錄供應商的接收與最終投遞狀態。</p>
-    <pre><code>on_message(message):
+    <p>辨識工作者將<mark class="mark-blue">結果參照、工作完成狀態、事件冪等紀錄與通知 outbox 一起提交，之後才 ACK</mark>。重新投遞時若同一事件已完成，就讀回原結果。通知工作者另以穩定的通知 ID 處理外部寄送，並記錄供應商的接收與最終投遞狀態。</p>
+    <pre><code class="language-pseudocode">on_message(message):
     result_ref = compute_or_reuse_versioned_result(message)
     transaction:
         if processed_events.contains(message.event_id):

@@ -12,7 +12,7 @@
 
   <section aria-labelledby="c08-push-pull">
     <h3 id="c08-push-pull">8.1 Push vs pull：誰決定下一次傳送</h3>
-    <p>Pull 是接收方主動要求資料，例如瀏覽器每隔一段時間查詢工作進度；push 是資料可用時由傳送方沿既有或另建的通道通知接收方。這是應用層的方向與節奏，不等同於誰最先建立 TCP 連線。瀏覽器先建立 WebSocket，之後伺服器推送事件，仍是應用層 push；使用者點開通知再抓文件內容，則是 push 與 pull 的組合。</p>
+    <p>Pull 是接收方主動要求資料，例如瀏覽器每隔一段時間查詢工作進度；push 是資料可用時由傳送方沿既有或另建的通道通知接收方。<mark>這是應用層的方向與節奏，不等同於誰最先建立 TCP 連線</mark>。瀏覽器先建立 WebSocket，之後伺服器推送事件，仍是應用層 push；使用者點開通知再抓文件內容，則是 push 與 pull 的組合。</p>
     <p>先算最簡單的輪詢：10 萬個客戶端每 5 秒查一次，平均是 20,000 requests／秒。若大多數時間沒有新事件，許多請求只得到「還沒好」。假設事件相對輪詢時刻均勻發生、請求處理很快，平均發現延遲約是間隔的一半，即 2.5 秒，最壞接近 5 秒再加網路及服務時間。若要求平均 0.5 秒內發現，就可能改成每秒輪詢，請求量上升到 100,000／秒。這是延遲與空查詢成本的直接交換。</p>
     <p>Push 減少空查詢，但需要維護連線、路由與慢接收者狀態。假設每個連線總共占用 32 KiB，10 萬條即約 3.05 GiB，尚未包括應用程式、額外佇列與高峰緩衝。當 1 萬個客戶端網路很慢時，不能不斷往其輸出佇列塞資料；要合併可覆寫的進度更新、限制每連線未送 bytes，或斷開並要求按游標補抓。Push 只是把「何時詢問」的成本換成「維持狀態及處理落後」的成本。</p>
     <p>對文件平台，處理中的進度可視為「最新狀態」，80%、81%、82% 不必保證每一筆都顯示；完成、失敗、權限變更則可能是需要保留的事件。可用 push 發送小型提示，再由客戶端 pull 已驗證權限的最新狀態。這也避免在通知通道散播完整敏感文件，並使短暫斷線後的重建更簡單。</p>
@@ -23,7 +23,7 @@
   <section aria-labelledby="c08-host-discovery">
     <h3 id="c08-host-discovery">8.2 Host discovery：名字如何變成可連線的地址</h3>
     <p>Host discovery 解決「我知道名稱，怎麼得到地址」。最常見是 DNS：名稱透過 resolver 與權威伺服器得到 A／AAAA 等紀錄，再由客戶端建立連線。名稱可指向實體主機，也可以指向負載平衡器、CDN 或服務入口；因此 DNS 回覆不是「真正處理請求的那台機器」的保證。DNS 的層級、委派與快取原理可查 <a href="https://www.rfc-editor.org/rfc/rfc1034.html">RFC 1034</a>。</p>
-    <p>TTL 是快取資訊的有效期限參數，不是完整故障轉移 SLA。即使所有解析器都在 30 秒後重新查詢，客戶端仍可能持有既有連線；應用程式自身的解析快取、連線池與平台行為也會影響切換。把 TTL 從五分鐘改成五秒，會增加解析負載，卻不會主動搬移已建立的長連線。計畫切換時要同時考慮舊地址的保留期和連線排空。</p>
+    <p><mark>TTL 是快取資訊的有效期限參數，不是完整故障轉移 SLA</mark>。即使所有解析器都在 30 秒後重新查詢，客戶端仍可能持有既有連線；應用程式自身的解析快取、連線池與平台行為也會影響切換。把 TTL 從五分鐘改成五秒，會增加解析負載，卻不會主動搬移已建立的長連線。計畫切換時要同時考慮舊地址的保留期和連線排空。</p>
     <p>文件平台的公開入口可以叫 api.example.test，對應穩定的負載平衡層；內部 worker 則使用服務名稱。若把每台短生命週期 worker 的 IP 寫死在程式中，每次擴容和替換都要重新部署客戶端。改用穩定名稱降低耦合，但會新增 DNS 可用性與錯誤處理責任：查詢超時、找不到名稱與「查到了但無法連線」應分類記錄，不能都回一個籠統的 500。</p>
     <p><strong>故障情境：</strong>區域 A 的 IP 已失效，部分客戶端繼續使用舊連線池，另一批解析到區域 B。此時需要為單次連線設定合理超時，失敗後清理不可用連線並重新解析，對冪等請求作受控重試。若是建立轉換工作的 POST，網路超時不能證明伺服器沒建立工作，仍需 idempotency key。地址探索與業務重試語意必須一起設計。</p>
     <p>知道 IP 也不表示應該信任對方。TLS 主機名稱驗證、憑證與服務身分用來檢查連線對象，DNS 回覆與可用性探測則回答不同問題。不要為了「IP 變了連不上」就關閉憑證驗證；探索流程應保持原來的授權與信任邊界。</p>
@@ -44,7 +44,7 @@
         <g stroke="#44647b" stroke-width="2" marker-end="url(#c08-arrow)"><path d="M435 74V146" stroke-dasharray="7 5"/><path d="M213 188H337"/><path d="M528 178L652 150"/><path d="M528 198L652 226"/></g><text x="470" y="111" font-family="sans-serif" font-size="15" fill="#425c70">端點更新</text><text x="243" y="177" font-family="sans-serif" font-size="15" fill="#425c70">真正請求</text>
       </svg><figcaption>控制面更新端點快取，資料面依快取轉送請求；探索服務短暫中斷時，既有端點仍可使用。</figcaption>
     </figure>
-    <p>常見 registry 使用定期心跳與租約判斷實例是否仍在。假設每 5 秒心跳、租約 15 秒，程序掛掉不會瞬間從所有客戶端消失；最後心跳、過期判斷及更新傳播都有延遲。客戶端必須承受暫時過期的名單。另一方面，短暫網路分割也可能讓健康實例被誤判失效，因此 registry 名單不能直接證明某個實例具有唯一的寫入權；寫入擁有權另需版本或 fencing 等機制。</p>
+    <p>常見 registry 使用定期心跳與租約判斷實例是否仍在。假設每 5 秒心跳、租約 15 秒，程序掛掉不會瞬間從所有客戶端消失；最後心跳、過期判斷及更新傳播都有延遲。客戶端必須承受暫時過期的名單。另一方面，短暫網路分割也可能讓健康實例被誤判失效，因此 registry 名單不能直接證明某個實例具有唯一的寫入權；<mark>寫入擁有權另需版本或 fencing 等機制</mark>。</p>
     <p><strong>平台取捨：</strong>OCR worker 的新工作可透過佇列分配，不一定直接對每個 worker 發 RPC；查詢服務則可使用穩定服務入口。若 registry 暫時無法連線，已有資料面請求可在有界時間內繼續用最後已知端點，並搭配失敗端點剔除。若需要新增實例或更換領導者，不能假裝舊名單仍是即時真相。要分清楚「可暫時服務」與「可正確重新配置」。</p>
     <details><summary>練習：服務實例在關機前立即從 registry 刪除，長請求會自然完成嗎？</summary><p>不一定。既有連線與快取端點仍會存在。完整排空程序通常先停止接受新工作／標記不就緒，再等待更新傳播與在途請求完成，最後才關閉程序；有最大排空期限，且客戶端具備超時及安全重試。對長連線服務，還要安排客戶端有抖動地重連。</p></details>
   </section>
@@ -54,7 +54,7 @@
     <p>對等系統中的節點通常既是客戶端也是伺服器。新節點沒有全網名單，需要先知道少量 bootstrap peers，再逐步發現其他節點。探索可以用固定種子、區域網路的發現機制、rendezvous、gossip 或分散式雜湊表（DHT）。這些方式不是同一件事：找鄰居、維護成員狀態、定位某個 peer、尋找內容提供者，可以分成不同協定。</p>
     <p>Gossip 的想法是每個節點只與少數其他節點交換消息，讓加入、離開或疑似故障逐步擴散。這能避免所有節點互相心跳造成約 n² 個配對，但資訊通常不是每一瞬間都一致。某節點「沒回應」可能是故障，也可能是慢、網路阻塞或暫時分割；可引入疑似狀態與間接探測降低誤判，仍不能從可達性推導全域共識。</p>
     <p>DHT 則把節點或內容鍵映射到識別空間，透過部分路由資訊逐步找到較接近目標的節點。libp2p 的 <a href="https://libp2p.io/docs/dht/">DHT 說明</a>區分 peer routing 與內容提供者探索。找到「聲稱有內容的節點」之後，仍要真的連線、驗證身分與內容，並處理 NAT、防火牆、節點離線和回傳過期資訊。DHT 不會自動保證內容可用，更不等於把大文件本身塞進 DHT。</p>
-    <p><strong>平台案例：</strong>假設同一個租戶有多個受控邊緣轉換節點，希望在私有網路內共用已下載的不可變字型或模型檔，可探索附近 peer，依內容雜湊驗證下載，失敗再回到可信任來源。租戶私有文件不能只因「找到相同 hash」就允許跨租戶讀取；內容是否相同與誰有權讀取是兩個問題。P2P 省下來源頻寬的同時，也擴大了節點身分、配額與資料流向管理的責任。</p>
+    <p><strong>平台案例：</strong>假設同一個租戶有多個受控邊緣轉換節點，希望在私有網路內共用已下載的不可變字型或模型檔，可探索附近 peer，依內容雜湊驗證下載，失敗再回到可信任來源。租戶私有文件不能只因「找到相同 hash」就允許跨租戶讀取；<mark>內容是否相同與誰有權讀取是兩個問題</mark>。P2P 省下來源頻寬的同時，也擴大了節點身分、配額與資料流向管理的責任。</p>
     <p><strong>選擇邊界：</strong>公司資料中心裡已有可靠控制面、節點數有限時，中央 registry 往往比較容易治理。跨自治組織、節點快速加入離開或無單一管理者的環境，peer discovery 才可能值得。不要為了一句「去中心化」引入難以追蹤的錯誤擴散與信任模型，也不要以為存在 bootstrap 節點就必須讓所有資料永遠經過它。</p>
     <details><summary>練習：所有 bootstrap 節點失效，整個 P2P 網路會立即停擺嗎？</summary><p>未必。已加入且仍保有可用鄰居的節點可能繼續交換資料；全新或丟失狀態的節點則可能無法加入。需要多個可信 bootstrap 來源、持久化已知鄰居及重新探索策略。答案取決於其他協定是否把 bootstrap 也當作唯一授權或路由中心。</p></details>
   </section>
@@ -65,7 +65,7 @@
     <p>第一步問資料是否必須完整、是否必須有序、互動是一問一答還是連續串流。文件內容必須完整，傳輸中遺失的 bytes 不能用下一張影格取代；即時通話中的過期音訊可能寧可丟棄，避免等重傳累積延遲。第二步問客戶端環境：瀏覽器、手機、企業代理及第三方整合各有不同支援。第三步才算序列化大小、連線建立、壓縮、流控、可觀測性與維運成熟度。</p>
     <p>HTTP/2 允許在一條連線上多工不同 stream，但傳統 HTTP/2 over TCP 遺失底層封包時，仍可能因 TCP 的有序交付影響同連線的其他 stream。HTTP/3 使用 QUIC，使不同 stream 的資料交付不必因另一 stream 的缺口一起等待；同一 stream 內仍須按序交付；不同 stream 也共用擁塞控制、連線級流控、頻寬與 CPU。若 HTTP 欄位引用尚未抵達的 QPACK 動態表項目，解碼還會等待對應更新，見 <a href="https://www.rfc-editor.org/rfc/rfc9204.html#section-2.1.2">QPACK 的 blocked streams</a>。分別見 <a href="https://www.rfc-editor.org/rfc/rfc9113">HTTP/2</a>、<a href="https://www.rfc-editor.org/rfc/rfc9114">HTTP/3</a>與 <a href="https://www.rfc-editor.org/rfc/rfc9000">QUIC</a> 標準。</p>
     <p><strong>延遲預算：</strong>假設某流程要依序呼叫三個外部 API，而且每一次 API 呼叫從呼叫端到該服務的 RTT 都是 80 ms、每個服務各處理 10 ms，這三次串行呼叫就可能累積約 3×(80＋10)＝270 ms，還不含握手、排隊與資料傳輸。換較短的欄位名稱通常救不了這種串行依賴；批次、合併請求或改變資料流可能更有效。反過來，在每秒百萬筆很小的內部 RPC 上，編碼、配置記憶體與 CPU 就可能成為主要成本。</p>
-    <p>所有協定都要有應用層 deadline。若入口的總預算只有 2 秒，依序呼叫的每一層不能各自再等 2 秒、再重試三次。把剩餘期限往下傳，取消已無用的工作，並將重試限於安全操作。<a href="https://grpc.io/docs/guides/deadlines/">gRPC deadline 文件</a>提醒用戶端應明確設定期限；協定能傳遞 deadline，不代表你的程式已正確處理取消。</p>
+    <p>所有協定都要有應用層 deadline。若入口的總預算只有 2 秒，依序呼叫的每一層不能各自再等 2 秒、再重試三次。<mark class="mark-blue">把剩餘期限往下傳，取消已無用的工作</mark>，並將重試限於安全操作。<a href="https://grpc.io/docs/guides/deadlines/">gRPC deadline 文件</a>提醒用戶端應明確設定期限；協定能傳遞 deadline，不代表你的程式已正確處理取消。</p>
     <details><summary>練習：客戶端超時並取消 RPC，伺服器的文件轉換一定停止了嗎？</summary><p>不一定。取消訊號可能尚未到達，正在執行的運算也可能不支援即時中止。更重要的是結果可能已提交。要設計可查詢的 job_id、冪等提交與取消狀態機；取消成功的語意是「不再接新階段」「已停止計算」還是「結果不再發布」，應由 API 明確定義。</p></details>
   </section>
 
@@ -85,7 +85,7 @@
     <p>假設某訓練影片位元率 4 Mb／秒，一個 4 秒片段約 16 Mb＝2 MB。10 分鐘影片約 300 MB；10 萬人同時以此位元率觀看，總輸出約 400 Gb／秒，未含協定開銷。這通常不是單一應用伺服器可以隨手承受的數量級。若每 4 秒請求一段，穩態平均約 25,000 次 segment requests／秒，還有 manifest、音訊和重試請求。</p>
     <p>短片段讓切換品質與接近直播邊緣更靈活，但增加請求、manifest 更新與編碼邊界成本；長片段常有較好的請求攤提，卻會增加啟動等待或追趕延遲。不能說「片段越短，延遲必定越低」，因為播放器預取、編碼、封裝、CDN 與網路抖動一起決定端到端延遲。直播還要區分事件發生到畫面出現的 glass-to-glass 延遲，與單次 HTTP 請求延遲。</p>
     <p>自適應位元率（ABR）不應只看最近一個片段的下載速度。假設一段下載很快，播放器立刻升級到高位元率，下一段網路稍慢就緩衝見底，畫質可能不斷震盪。策略應同時考慮可用緩衝、估測頻寬與切換成本。若不同畫質的切點不對齊，切換也可能造成解碼或時間線問題；封裝與編碼梯度要一起設計。</p>
-    <p><strong>平台延伸：</strong>文件系統若增加「簡報轉成旁白影片」，轉換結果可產出多個 rendition 與不可變 segment，以版本化 URL 發布。只有所有必要片段完成後才發布對應 manifest，避免播放到一半才發現後續檔案不存在。私有培訓內容在 manifest 和 segment 都要有授權設計，不能只保護第一個網頁。</p>
+    <p><strong>平台延伸：</strong>文件系統若增加「簡報轉成旁白影片」，轉換結果可產出多個 rendition 與不可變 segment，以版本化 URL 發布。<mark>只有所有必要片段完成後才發布對應 manifest</mark>，避免播放到一半才發現後續檔案不存在。私有培訓內容在 manifest 和 segment 都要有授權設計，不能只保護第一個網頁。</p>
     <details><summary>練習：把全部影片包成一個 MP4，HTTP Range 可以取片段，還需要 HLS 嗎？</summary><p>不一定每個情境都需要 HLS。簡單短片可透過支援 Range 的檔案服務供播放器按需取得；若需要多位元率切換、直播與較完整的串流流程，playlist／分段格式更方便。要根據播放端相容性、封裝方式、快取與權限要求選擇，不能把「影片走 HTTP」當成單一方案。</p></details>
   </section>
 
@@ -95,7 +95,7 @@
 <figure class="visual-explainer" id="visual-08-cdn"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 440" role="img" aria-labelledby="visual-08-cdn-title visual-08-cdn-desc"><title id="visual-08-cdn-title">CDN：重複內容在近端交付，未命中才回源</title><desc id="visual-08-cdn-desc">以可公開快取的版本化圖片為例；私人文件需另設授權與快取隔離。</desc><defs><marker id="visual-08-cdn-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#127c79"/></marker></defs><rect width="960" height="100%" rx="16" fill="#fff"/><text x="32" y="42" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="26" font-weight="700" text-anchor="start" fill="#163b42">CDN：重複內容在近端交付，未命中才回源</text><text x="32" y="76" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#587078">以可公開快取的版本化圖片為例；私人文件需另設授權與快取隔離。</text><rect x="32" y="120" width="230" height="100" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="50" y="152" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">使用者</text><text x="50" y="179" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">請求 preview-v7.webp</text><rect x="350" y="120" width="260" height="100" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="368" y="152" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">附近的邊緣節點</text><text x="368" y="179" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">檢查快取鍵與新鮮度</text><rect x="690" y="265" width="235" height="100" rx="12" fill="#eaf2fc" stroke="#387ac3" stroke-width="1.5"/><text x="708" y="297" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#387ac3">來源服務</text><text x="708" y="324" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">產生／讀取原始資源</text><path d="M262 167 L347 167" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-08-cdn-arrow)"/><path d="M480 220 L480 315 L687 315" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-08-cdn-arrow)"/><text x="586" y="300" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="16" font-weight="400" text-anchor="middle" fill="#163b42">未命中才回源</text><path d="M350 200 L300 200 L300 285 L145 285 L145 222" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-08-cdn-arrow)"/><text x="169" y="317" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="16" font-weight="400" text-anchor="middle" fill="#163b42">命中直接回傳</text><rect x="24" y="378" width="912" height="44" rx="12" fill="#f0f5f6" stroke="none" stroke-width="1.5"/><text x="42" y="407" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="18" font-weight="700" text-anchor="start" fill="#127c79">邊緣快取加快分發；失效傳播、私有資料與回源保護仍要設計。</text></svg><figcaption>快取鍵決定共用哪份內容，授權決定誰可讀；私有內容在命中時也要通過授權。</figcaption></figure>
 
 <p>先區分 request hit ratio 與 byte hit ratio。假設 99 個 10 KB 圖片命中，1 個 1 GB 文件未命中，請求命中率是 99%，但大部分 bytes 仍來自來源。若平台每天輸出 20 TB，byte hit ratio 95%，簡化估計來源內容流量約 1 TB／日；還要另計重新驗證、上傳、失敗重試與區域間流量。不能用請求命中率直接乘所有資料量。</p>
-    <p><strong>快取鍵就是隔離的一部分。</strong>若 URL 都是 /preview/latest，伺服器依 Cookie 決定租戶內容，但 CDN 沒有正確區隔且允許共享快取，A 的預覽可能被 B 拿到。安全設計可使用不可變、租戶／物件／版本明確的路徑，並保證每次 cache hit 仍執行必要授權；或對敏感個人化回應禁止共享快取。簽名 URL 的 cache key 與驗證順序要依 CDN 實作仔細設計，不能單純忽略所有 query parameters 以提高命中率。</p>
+    <p><strong><mark>快取鍵就是隔離的一部分</mark>。</strong>若 URL 都是 /preview/latest，伺服器依 Cookie 決定租戶內容，但 CDN 沒有正確區隔且允許共享快取，A 的預覽可能被 B 拿到。安全設計可使用不可變、租戶／物件／版本明確的路徑，並保證每次 cache hit 仍執行必要授權；或對敏感個人化回應禁止共享快取。簽名 URL 的 cache key 與驗證順序要依 CDN 實作仔細設計，不能單純忽略所有 query parameters 以提高命中率。</p>
     <p><a href="https://www.rfc-editor.org/rfc/rfc9111">HTTP Caching 標準</a>中，private、no-store、no-cache 與重新驗證的語意不同。no-cache 不是「完全不存」，而是使用前需要相應驗證；no-store 是不儲存；private 用於限制共享快取。這些標頭是協定與快取策略，不能替代登入與授權。代理配置若覆寫來源規則，也要列入安全測試。</p>
     <figure>
       <svg viewBox="0 0 880 230" role="img" aria-labelledby="c08-cdn-title c08-cdn-desc" xmlns="http://www.w3.org/2000/svg">
@@ -115,7 +115,7 @@
     <p><strong>Short polling：</strong>每隔固定或自適應間隔發一次查詢，實作簡單，容易使用一般 HTTP 基礎設施。配合 ETag／條件請求可減少回應內容，卻不會消除請求本身。間隔加入 jitter，避免所有客戶端整點一起醒來；頁面在背景時可降低頻率，但完成事件仍要有下次同步方式。</p>
     <p><strong>Long polling：</strong>客戶端發出請求，伺服器在有事件或到達等待上限才回應，客戶端接著再發下一個。這把許多空回應變成懸掛請求，需控制同時等待數量，並設置比代理超時更適合的應用層等待時間。舊請求結束到新請求開始之間可能有空檔，因此每次都應帶游標，補上兩次請求之間可能漏掉的事件。</p>
     <p><strong>SSE：</strong>伺服器以 text/event-stream 回應，適合伺服器到瀏覽器的文字事件。瀏覽器 EventSource 有重連與 Last-Event-ID 相關行為，規範見 <a href="https://html.spec.whatwg.org/multipage/server-sent-events.html">HTML Standard 的 Server-sent events</a>；伺服器依 ID 從持久化事件補送；客戶端送指令可另用一般 HTTP。</p>
-    <p><strong>SSE 的接收游標與完成游標。</strong>瀏覽器會先更新 EventSource 的 last event ID，再派送事件給程式。若處理 ID 42 時失敗，自動重連仍可能帶著 Last-Event-ID: 42。需要逐項完成的工作，應另外保存 last_applied_cursor，只在套用成功後前進；處理失敗就關閉連線，從自己的完成游標重新補抓。若需服務端追蹤完成，再由獨立 HTTP 請求回報 ACK。單純顯示進度的頁面，也可在重連後直接抓最新狀態。參見 <a href="https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation">EventSource 事件派送步驟</a>。</p>
+    <p><strong>SSE 的接收游標與完成游標。</strong>瀏覽器會先更新 EventSource 的 last event ID，再派送事件給程式。若處理 ID 42 時失敗，自動重連仍可能帶著 Last-Event-ID: 42。需要逐項完成的工作，應<mark class="mark-blue">另外保存 last_applied_cursor，只在套用成功後前進</mark>；處理失敗就關閉連線，從自己的完成游標重新補抓。若需服務端追蹤完成，再由獨立 HTTP 請求回報 ACK。單純顯示進度的頁面，也可在重連後直接抓最新狀態。參見 <a href="https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation">EventSource 事件派送步驟</a>。</p>
     <p><strong>WebSocket：</strong>握手後交換雙向訊息，適合互動密集的連線。<a href="https://www.rfc-editor.org/rfc/rfc6455">RFC 6455</a>定義 framing、控制訊息及關閉流程，但沒有替你定義持久化 inbox、業務 ACK、斷線重播或恰好一次副作用。底層連線有序，只表示該連線的傳輸順序；若重連到另一台 gateway，舊訊息是否遺失、是否重複、如何跨連線排序，仍是應用程式的工作。</p>
     <p><strong>Webhook 與裝置 push：</strong>Webhook 是伺服器對伺服器呼叫接收者提供的 HTTP 端點，通常要簽章、時間戳、防重播、重試及去重；裝置 push 則由平台服務替背景客戶端管理交付，涉及使用者授權、裝置 token、TTL 與節電政策。它們都叫 push，卻有不同的信任邊界和生命週期。Web Push 的基本角色與過期行為可看 <a href="https://www.rfc-editor.org/rfc/rfc8030.html">RFC 8030</a>。</p>
     <p><strong>背壓算例：</strong>某客戶端只能接收 10 筆／秒，伺服器產生 100 筆／秒，每筆 1 KB，若不限制，10 分鐘會積欠約 (100−10)×600×1 KB＝54 MB。10,000 個這樣的客戶端就約 540 GB。這時需要合併最新狀態、丟棄允許丟棄的資料、降低訂閱量、改用補抓或中止連線，不能只增加 gateway 記憶體。</p>
@@ -150,7 +150,7 @@
     <p><strong>連線容量：</strong>假設壓測證明一台 gateway 在目標 p99 與記憶體預算下可安全維持 20,000 條連線，10 萬條的最低算術值是 5 台，不是上線配置。若部署 8 台平均承載 12,500 條，少一台後約 14,286 條；但若一整個區域／可用區移除三台，剩五台每台 20,000，已沒有餘裕。還要考慮連線是否均勻、CPU、檔案描述符、TLS 握手與慢端緩衝。真正限制取決於壓測，不由某個固定「每台最多連線」傳說決定。</p>
     <p><strong>重連風暴：</strong>若 10 萬個客戶端在十秒內同時回來，是每秒一萬次連線與驗證請求，還會觸發補抓。客戶端採指數退避與 jitter，伺服器限制新握手速率並保留快速失敗策略，部署時分批排空。縮短心跳有助較快發現斷線，卻增加流量與手機喚醒；10 萬連線每 30 秒一次心跳約 3,333 次／秒，回應還要再算一趟。心跳只能證明某時間點通道可用，不能證明某則業務訊息已被處理。</p>
     <p><strong>避免補抓與即時串流之間的缺口：</strong>客戶端帶 last_applied_cursor 連線，伺服器先建立可銜接的事件訂閱位置，取得高水位 H，重播 (cursor, H]，再交付 H 之後的事件。也可以讓同一持久化串流直接從 cursor 接續。關鍵是有單一、明確的邊界，不能先查完資料庫、隔幾秒才開始訂閱。跨多分區的系統可能需要多個游標或向量，而不是假裝存在全域連號。</p>
-    <p>ACK 的設計也要有語意。客戶端只有在已按契約處理或持久化事件後才回報游標；批次 ACK 要表示「連續套用到哪裡」，不能跳過中間缺口。採用應用層 ACK 的 gateway 以完成游標決定重送範圍；客戶端按 event_id 去重、按 document_version 避免回退。SSE 的 Last-Event-ID 則依前節方式另行處理。多裝置的同步游標、使用者的已讀狀態、通知是否已送達手機是不同欄位，不能用一個 last_seen 混為一談。</p>
+    <p>ACK 的設計也要有語意。客戶端只有在已按契約處理或持久化事件後才回報游標；<mark>批次 ACK 要表示「連續套用到哪裡」，不能跳過中間缺口</mark>。採用應用層 ACK 的 gateway 以完成游標決定重送範圍；客戶端按 event_id 去重、按 document_version 避免回退。SSE 的 Last-Event-ID 則依前節方式另行處理。多裝置的同步游標、使用者的已讀狀態、通知是否已送達手機是不同欄位，不能用一個 last_seen 混為一談。</p>
     <p><strong>安全與營運：</strong>連線初始驗證成功不等於永久有權訂閱。Token 過期、租戶切換、文件撤權都要重新評估；訂閱 topic 不能由客戶端任意猜到即加入。量測連線數、建立失敗率、ACK lag、inbox oldest age、每租戶積欠、重連率與丟棄的可覆寫進度。若只看 gateway CPU 平均 30%，可能完全漏掉某租戶通知已經延遲十分鐘。</p>
     <details><summary>練習：gateway 在送出完成事件後、記錄 ACK 前掛掉，應如何處理？</summary><p>新的 gateway 根據持久化 inbox 和客戶端游標重播，客戶端可能再次收到相同 event_id，但不應再次執行不可重複副作用。若第一次只顯示畫面，去重與版本比較可處理；若涉及扣款或寄信，應由具冪等保護的後端執行，不交給瀏覽器收到通知就直接觸發。斷線可恢復靠的是應用協定，並不是 WebSocket 自帶可靠投遞。</p></details>
   </section>
