@@ -5,7 +5,7 @@
 
   <h3 id="ch03-regions-zones-datacenters-racks-servers">3.1 區域、可用區、資料中心、機櫃與伺服器（Regions, availability zones, data centers, racks, servers）</h3>
   <p>部署地理位置會同時影響延遲、法規與契約限制、災難復原範圍、複寫成本和資源供應，畫架構圖時就需要考慮。先把故障域（failure domain）當作核心概念：一組可能被同一事件一起影響的資源。硬體層級可以幫助辨識故障域，但真實依賴還包括軟體版本、身份權限、網路出口與人員操作。</p>
-<figure class="visual-explainer" id="visual-03-domains"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 510" role="img" aria-labelledby="visual-03-domains-title visual-03-domains-desc"><title id="visual-03-domains-title">兩份副本，放在哪裡才有意義？</title><desc id="visual-03-domains-desc">故障域是可能一起失效的範圍；增加副本數之前，先看共享了什麼。</desc><defs><marker id="visual-03-domains-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#127c79"/></marker></defs><rect width="960" height="100%" rx="16" fill="#fff"/><text x="32" y="42" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="26" font-weight="700" text-anchor="start" fill="#163b42">兩份副本，放在哪裡才有意義？</text><text x="32" y="76" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#587078">故障域是可能一起失效的範圍；增加副本數之前，先看共享了什麼。</text><rect x="25" y="110" width="910" height="304" rx="12" fill="#f4f8fa" stroke="#b7c8ce" stroke-width="1.5"/><text x="44" y="144" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#163b42">同一 Region（區域）</text><rect x="48" y="162" width="402" height="225" rx="12" fill="#fff" stroke="#8aaeb7" stroke-width="1.5"/><text x="66" y="194" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#163b42">可用區 A</text><rect x="510" y="162" width="402" height="225" rx="12" fill="#fff" stroke="#8aaeb7" stroke-width="1.5"/><text x="528" y="194" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#163b42">可用區 B</text><rect x="68" y="220" width="170" height="105" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="86" y="252" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">副本 1</text><text x="86" y="279" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">同一機櫃</text><rect x="252" y="220" width="170" height="105" rx="12" fill="#fff3d9" stroke="#ad6707" stroke-width="1.5"/><text x="270" y="252" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#ad6707">副本 2</text><text x="270" y="279" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">同一機櫃</text><rect x="540" y="220" width="332" height="105" rx="12" fill="#eaf2fc" stroke="#387ac3" stroke-width="1.5"/><text x="558" y="252" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#387ac3">副本 3</text><text x="558" y="279" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">分散可用區故障風險</text><text x="70" y="359" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#bd4354">機櫃供電故障可能一起失去 1、2</text><text x="540" y="359" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">仍須考慮跨區域共同依賴</text><rect x="24" y="448" width="912" height="44" rx="12" fill="#f0f5f6" stroke="none" stroke-width="1.5"/><text x="42" y="477" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="18" font-weight="700" text-anchor="start" fill="#127c79">跨可用區 ≠ 能承受所有區域級事故；副本也不是歷史備份。</text></svg><figcaption><strong>讀圖：</strong>先看最內層共享的機櫃，再向外檢查可用區與區域。<br/><strong>抓住重點：</strong>實際可用區與機房的對應依供應商而異，這是故障域示意。</figcaption></figure>
+<figure class="visual-explainer" id="visual-03-domains"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 510" role="img" aria-labelledby="visual-03-domains-title visual-03-domains-desc"><title id="visual-03-domains-title">副本位置決定容錯範圍</title><desc id="visual-03-domains-desc">故障域是可能一起失效的範圍；增加副本數之前，先看共享了什麼。</desc><defs><marker id="visual-03-domains-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#127c79"/></marker></defs><rect width="960" height="100%" rx="16" fill="#fff"/><text x="32" y="42" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="26" font-weight="700" text-anchor="start" fill="#163b42">副本位置決定容錯範圍</text><text x="32" y="76" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#587078">故障域是可能一起失效的範圍；增加副本數之前，先看共享了什麼。</text><rect x="25" y="110" width="910" height="304" rx="12" fill="#f4f8fa" stroke="#b7c8ce" stroke-width="1.5"/><text x="44" y="144" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#163b42">同一 Region（區域）</text><rect x="48" y="162" width="402" height="225" rx="12" fill="#fff" stroke="#8aaeb7" stroke-width="1.5"/><text x="66" y="194" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#163b42">可用區 A</text><rect x="510" y="162" width="402" height="225" rx="12" fill="#fff" stroke="#8aaeb7" stroke-width="1.5"/><text x="528" y="194" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#163b42">可用區 B</text><rect x="68" y="220" width="170" height="105" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="86" y="252" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">副本 1</text><text x="86" y="279" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">同一機櫃</text><rect x="252" y="220" width="170" height="105" rx="12" fill="#fff3d9" stroke="#ad6707" stroke-width="1.5"/><text x="270" y="252" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#ad6707">副本 2</text><text x="270" y="279" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">同一機櫃</text><rect x="540" y="220" width="332" height="105" rx="12" fill="#eaf2fc" stroke="#387ac3" stroke-width="1.5"/><text x="558" y="252" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#387ac3">副本 3</text><text x="558" y="279" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">分散可用區故障風險</text><text x="70" y="359" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#bd4354">機櫃供電故障可能一起失去 1、2</text><text x="540" y="359" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">仍共用區域級依賴</text><rect x="24" y="448" width="912" height="44" rx="12" fill="#f0f5f6" stroke="none" stroke-width="1.5"/><text x="42" y="477" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="18" font-weight="700" text-anchor="start" fill="#127c79">跨 AZ 分散基礎設施故障；歷史備份處理誤刪與壞更新。</text></svg><figcaption>副本 1、2 共用機櫃；副本 3 分散到另一個可用區。依序檢查供電、網路與區域級依賴。</figcaption></figure>
 
 <p><strong>區域（Region）：</strong>通常代表雲端供應商的一個地理服務範圍。不同區域的距離、服務可用性、容量、價格與政策可能不同。選擇區域時，先看主要使用者和資料來源在哪裡，再看資料駐留要求與所需服務。跨區域並不自動複寫所有資料，也不自動提供跨區域容錯；每項服務要個別確認。</p>
   <p><strong>可用區（Availability Zone，AZ）：</strong>是區域內設計用來隔離一部分基礎設施故障的部署位置。以 AWS 為例，一個 AZ 可由一個或多個資料中心組成，因此「AZ 等於一棟機房」並不精確。AZ 之間有區域內網路連接，但「低延遲」仍不等於零延遲，也不代表所有故障完全獨立。不同供應商對 region、zone 的語意不同，不能只憑名稱套用。</p>
@@ -34,7 +34,7 @@
         <text x="731" y="104" font-size="20">Region B</text><text x="731" y="149" font-size="17">另一組部署資源</text><text x="731" y="183" font-size="16">或跨區域備份</text><text x="731" y="231" font-size="14">需要獨立設計</text><text x="731" y="254" font-size="14">複寫與復原流程</text>
       </g>
     </svg>
-    <figcaption>圖 3-1。這是概念圖，不是供應商的實際拓撲。AZ 可能包含多個資料中心；副本位置應以欲容忍的故障來決定。</figcaption>
+    <figcaption>圖 3-1。AZ 可包含多個資料中心；按目標故障範圍分散副本，並檢查共享依賴。</figcaption>
   </figure>
   <p>假設文件平台把三份任務副本放在同一台實體主機的三個 VM：這可讓部分程序問題互不影響，但主機故障仍會一次失去三份。移到三台主機，可改善主機層故障，卻仍可能共用同一機櫃；跨 AZ 才能抵抗某些 AZ 級事件。若三個 AZ 都同時部署相同有問題的程式，硬體分散又無法避免共同軟體失敗。因此，部署分批與權限隔離也是故障域設計。</p>
   <p><strong>多可用區部署還需要故障後容量。</strong>假設平台尖峰需要每秒 120 份的處理能力，三個 AZ 各放每秒 40 份的安全容量。總量看似足夠，但一個 AZ 故障後只剩每秒 80 份，積壓會以每秒 40 份增加。若希望在失去一個 AZ 後不靠新增資源仍承受全負載，三區各需每秒 60 份，總容量為每秒 180 份。這裡的「安全容量」指已在延遲目標下驗證的容量，而非硬體極限。</p>
@@ -43,9 +43,20 @@
 總部署容量 ≥ 總尖峰負載 × n ÷ (n − 1)
 3 個 AZ：倍率為 3/2 = 1.5；相對無故障需求多準備 50%
 2 個 AZ：倍率為 2/1 = 2；相對無故障需求多準備 100%</code></pre>
-  <p>公式假定流量能有效轉移、剩餘節點健康、資料與依賴可用，而且沒有其他瓶頸。它說明預留容量的理由，不保證故障切換零中斷。若依賴事故發生後才即時開機，還會依賴建立資源、取得映像檔、套用設定與註冊服務等控制流程。AWS 將能在依賴受損時仍靠既有資源繼續運作的做法稱為靜態穩定性（static stability）；對嚴格的恢復目標，預先準備常比臨時反應更可靠。</p>
+  <p>這份容量必須能透過路由切換、資料存取與健康的剩餘依賴實際使用。若事故後才開機，恢復路徑還會依賴建立資源、取得映像檔、套用設定與註冊服務。AWS 將依賴受損時仍靠既有資源繼續運作的做法稱為靜態穩定性（static stability）；預先部署容量，可減少恢復對控制平面的依賴。</p>
+  <h4 id="ch03-quorum-placement">多數決副本要按故障域計算</h4>
+  <p>採用 Raft 這類多數決協定時，除了 worker 容量，還要確認故障後能否形成 quorum。固定成員組態有 N 個投票副本，需要 ⌊N/2⌋＋1 個正常且互通的副本才能推進提交。副本所在位置決定一個 AZ 故障會同時失去幾票；<a href="https://raft.github.io/raft.pdf">Raft 論文</a>以多數節點正常、彼此及與客戶端能通訊作為進展條件。</p>
+  <table>
+    <thead><tr><th scope="col">投票副本配置</th><th scope="col">多數門檻</th><th scope="col">最壞單一 AZ 故障後</th><th scope="col">能否繼續提交</th></tr></thead>
+    <tbody>
+      <tr><td>3 份，兩個 AZ 分別放 2、1 份</td><td>2 票</td><td>剩 1 票</td><td>失去放 2 份的 AZ 時停止提交</td></tr>
+      <tr><td>3 份，三個 AZ 各放 1 份</td><td>2 票</td><td>剩 2 票</td><td>剩餘副本互通即可形成多數</td></tr>
+      <tr><td>5 份，三個 AZ 分別放 2、2、1 份</td><td>3 票</td><td>剩 3 票</td><td>剩餘副本互通即可形成多數</td></tr>
+    </tbody>
+  </table>
+  <p>這張表檢查提交所需票數；選主時間、剩餘副本的處理能力和依賴可用性，則決定多久能恢復及恢復後能承受多少流量。唯讀副本是否有投票權，依實際組態確認。</p>
   <p><strong>控制平面與資料平面：</strong>控制平面（control plane）負責改變資源與設定，資料平面（data plane）負責既有工作持續運作。對平台而言，新增租戶、部署 worker 和改路由屬於控制活動；處理已接收文件屬於日常資料路徑。若每份文件都必須即時向不必要的配置中心查詢才能處理，配置中心故障就會放大成全面停工。可以快取已核准且版本化的非敏感設定，但權限撤銷與安全策略仍需明確處理，不能無限沿用過期授權。</p>
-  <p><strong>多區域的代價：</strong>區域距離較遠，跨區域同步確認可能增加寫入延遲；改用非同步複寫則要接受複寫落後與災難時可能的 RPO。假設教學環境兩區域實測往返時間為 60 ms，一個必須等待遠端回覆的協調步驟就會把這段網路等待帶進關鍵路徑。這不是所有雲端網路的固定數字，也不能直接推導整體 p99；它用來提醒你，遠端安全承諾必然有路徑成本。</p>
+  <p><strong>多區域的代價：</strong>區域距離較遠，跨區域同步確認可能增加寫入延遲；改用非同步複寫則要接受複寫落後與災難時可能的 RPO。假設兩區域往返時間為 60 ms，必須等待遠端回覆的協調步驟就把這段網路時間帶進寫入關鍵路徑。估算時列出需要幾次往返，再加上遠端排隊與持久化時間；尾延遲以整條路徑的分布量測。</p>
   <p>不要一開始就把所有資料雙向寫入兩個區域。對文件平台，可先區分租戶主要區域、跨區域唯讀結果副本與災難復原備份。主動主動寫入（active-active）可能改善特定旅程的存取位置，但會引入衝突、全域唯一性、配額同步與故障後合併問題。若只需要幾小時內恢復服務，較簡單的備援或復原方案可能更符合團隊能力；若真的需要快速跨區域接管，就必須驗證資料、金鑰、路由、帳號與依賴能一起恢復。</p>
   <p><strong>資料區域性（Data locality）：</strong>讓工作接近原件所在位置，常能減少不必要的跨域傳輸。每天 5 TB 原件若全部搬到另一個區域處理，就至少新增約 5 TB/day 的單向原件傳輸，尚未計入結果、重試與複寫。真正費用取決於供應商、方向與方案，不能套用單一固定單價。架構圖上的每一條跨區域箭頭，都值得列入容量和成本表。</p>
   <table>
@@ -62,7 +73,7 @@
   <p class="exercise"><strong>練習 A：</strong>三個 AZ 各有每秒 50 份安全處理能力，尖峰為每秒 120 份。一個 AZ 故障五分鐘，其他條件不變，新增多少積壓？若要免於積壓，每個 AZ 至少需要多少容量？</p>
   <details><summary>參考解答與推理</summary><p>剩餘服務率是 100 份／秒，差額 20 份／秒，五分鐘新增 20 × 300 = 6,000 份。若要讓剩餘兩區仍提供 120 份／秒，每區至少 60 份／秒。這只是容量條件，還需確保路由、資料存取與任務恢復確實能利用剩餘容量。</p></details>
   <p class="exercise"><strong>練習 B：</strong>一個租戶要求「所有原件不能離開指定區域」，平台計畫把原件複寫到海外作備份。即使備份平時無人讀取，這個設計是否滿足需求？還應檢查哪些資料？</p>
-  <details><summary>參考解答與推理</summary><p>不滿足字面上的區域限制。備份也是資料副本，不能因為少讀取就忽略。還應檢查衍生結果、OCR 文字、縮圖、除錯日誌、搜尋索引、暫存檔與復原演練用副本。具體合約與法規範圍需要專業確認，但工程設計必須先把資料流列完整，不能自行假定加密後就不算跨區域。</p></details>
+  <details><summary>參考解答與推理</summary><p>原件備份仍是資料副本，移至海外違反這項區域要求。應改在指定區域內安排隔離備份，並檢查衍生結果、OCR 文字、縮圖、除錯日誌、搜尋索引、暫存檔與復原演練副本的實際位置，把每條資料流對照約定範圍。</p></details>
 
   <h3 id="ch03-physical-vm-container-serverless">3.2 實體伺服器、虛擬機、容器與無伺服器（Physical servers, virtual machines, containers, serverless）</h3>
   <p>這四種形式可以並存：容器可以運行在虛擬機裡，虛擬機運行在實體機上，serverless 供應商也必須使用實際硬體與隔離機制。選擇的核心是「你控制哪一層、管理哪一層、共享哪些資源、承擔哪些限制」，而非哪個名詞比較新。對文件平台，不同元件甚至可以選不同執行形式。</p>
@@ -73,12 +84,11 @@
   <pre><code>教學主機：32 GiB RAM，為系統與安全餘裕保留 8 GiB
 可用工作記憶體 = 24 GiB = 24,576 MiB
 假設每份工作峰值 600 MiB：floor(24,576 ÷ 600) = 40 份
-40 只是記憶體約束，不代表 CPU／磁碟也支援 40 份並行
+記憶體允許最多 40 份並行；工作池大小再依 CPU、磁碟與網路負載測試調整
 
 教學網卡：10 Gbit/s = 1.25 GB/s（理論十進位換算）
 假設有效應用吞吐量只有理論值的 70%：875 MB/s
-只傳 5 MB 原件時：875 ÷ 5 = 175 份／秒
-這是虛構條件下的上界估算，非硬體 benchmark</code></pre>
+只傳 5 MB 原件時：875 ÷ 5 = 175 份／秒</code></pre>
   <p>網路算例刻意只算一次原件傳輸。若一份任務還要寫結果、下載字型與傳送日誌，或者多個 worker 共用出口，真實可用的每份頻寬就更少。儲存也同理：能順序讀出很多 GB/s 的裝置，不一定能承受大量小型同步寫入。規格表的最大吞吐量和你應用程式能達成的服務率之間，需要實際工作負載測試。</p>
   <p class="pitfall"><strong>常見誤區：</strong>把「記憶體還有空間」解讀為可以不斷增加執行緒。更多並行可能造成 CPU 排程、記憶體頻寬競爭與磁碟佇列，讓每份工作更慢，最終吞吐量也下降。</p>
   <p class="exercise"><strong>練習：</strong>同一台 32 GiB 主機中，有一種新格式每份峰值占用 2 GiB，其他條件同上。若把工作池仍設成 40，可能發生什麼？僅就記憶體的上限應是多少？</p>
@@ -93,7 +103,7 @@
   <p class="exercise"><strong>練習：</strong>你有兩台 VM，各跑一個資料庫副本，卻不知道底層主機或 AZ。可以宣稱能容忍一台實體主機故障嗎？</p>
   <details><summary>參考解答與推理</summary><p>不能只憑 VM 數量宣稱。先確認供應商可提供的放置或反親和性機制，以及副本實際故障域。即使確定在不同實體主機，仍需檢查儲存、仲裁、故障切換和剩餘容量。部署位置只是容錯鏈的一個條件。</p></details>
 
-  <h4 id="ch03-containers">容器：打包與程序隔離，不是完整安全保證</h4>
+  <h4 id="ch03-containers">容器：打包、程序隔離與資源控制</h4>
   <p>一般 Linux 容器（container）是經隔離與資源管理的程序集合；同一主機上的這類容器共享主機核心，而 VM 各有客體核心。映像檔（image）把應用程式與相依檔案打包，使發布與重建更可重現。容器不必內含一套獨立開機的作業系統核心，因此通常能更輕量地部署程序，但啟動速度與記憶體消耗仍取決於應用與環境。</p>
   <p>Linux namespaces 隔離程序看到的部分系統資源，cgroups 提供資源控制與計量；這些機制解決不同層面的問題。CPU 限額可能讓程序被節流，記憶體限制可能導致配置失敗或程序終止。只設定容器數量，不限制它們的資源，仍可能讓一個租戶的巨大文件耗盡整個主機。限制設得太低，可能把原本可成功的工作變成持續重試。</p>
   <p>對文件平台，一個合理部署單位是具有固定版本的轉換器映像，加上外部傳入的任務識別與最小授權。應用記錄轉換器版本，讓結果可以追溯；新版本先處理少量測試或低風險工作，驗證成功率、資源需求和結果品質後再擴大。不可變映像有助於知道跑的是什麼，卻不會自動確保 schema、外部相依服務或設定相容。</p>
@@ -128,10 +138,11 @@
     </tbody>
   </table>
   <p>最實用的選擇順序是：先列工作時間與資源分布，再列隔離、狀態與故障需求，最後比較營運與成本。若團隊已有成熟容器平台，沿用它可能比另引入函式平台更簡單；若沒有長駐系統需求，託管事件處理也可能減少維護負擔。不要為了統一架構而強迫所有工作使用同一形式，也不要只為追求彈性而引入過多平台。</p>
-  <p class="chapter-summary"><strong>本章帶走：</strong>副本數量不等於獨立故障域，雲端資源數量不等於有效容量，執行形式也不等於應用正確性。先定位資料與共享依賴，再用故障後容量、資源約束與實際量測選擇部署方案。</p>
+  <p class="chapter-summary">先定位資料與共享依賴，再用故障後容量、多數決門檻、資源約束與實際量測選擇部署方案。</p>
 
   <h3 id="ch03-references">本章參考資料</h3>
   <ol class="references">
+    <li>Diego Ongaro、John Ousterhout，In Search of an Understandable Consensus Algorithm，多數決與故障模型：<a href="https://raft.github.io/raft.pdf">https://raft.github.io/raft.pdf</a></li>
     <li>AWS Regions and Availability Zones，區域與 AZ 的正式語意：<a href="https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions-availability-zones.html">https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions-availability-zones.html</a></li>
     <li>AWS Fault Isolation Boundaries，故障邊界：<a href="https://docs.aws.amazon.com/whitepapers/latest/aws-fault-isolation-boundaries/abstract-and-introduction.html">https://docs.aws.amazon.com/whitepapers/latest/aws-fault-isolation-boundaries/abstract-and-introduction.html</a></li>
     <li>AWS Builders’ Library，Static stability using Availability Zones：<a href="https://aws.amazon.com/builders-library/static-stability-using-availability-zones/">https://aws.amazon.com/builders-library/static-stability-using-availability-zones/</a></li>

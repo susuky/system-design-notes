@@ -1,103 +1,97 @@
 <section class="sd-lab" id="lab-sd-cache" data-sd-lab="cache" aria-labelledby="lab-sd-cache-title">
-  <div class="sd-lab-heading"><span class="sd-lab-number">01</span><div><p class="sd-lab-subtitle">Cache-aside 與失效空窗</p><h3 id="lab-sd-cache-title">快取命中了，怎麼還是舊值？</h3></div><a class="sd-lab-chapter-link" href="#chapter-05">回到第 5 章 ↗</a></div>
-  <p class="sd-lab-assumption"><strong>模型假設</strong> 單一 key、單一快取、請求依序執行；資料庫讀寫已提交，沒有 TTL、故障或讀寫競爭。版本比對是教學觀察，實際 cache-aside 不一定會查版本。</p>
+  <div class="sd-lab-heading"><span class="sd-lab-number">01</span><div><h3 id="lab-sd-cache-title">快取旁路</h3></div><a class="sd-lab-chapter-link" href="#chapter-05">第 05 章</a></div>
+  <p class="sd-lab-assumption">資料庫初始為 v1，W 提交 v2。選擇失效與舊讀取回填的順序，觀察 R1–R3；快取不設 TTL。</p>
   <form class="sd-lab-inputs js-only" novalidate>
-  <label for="lab-sd-cache-initial"><span>資料庫原值</span><input id="lab-sd-cache-initial" name="initial" type="number" min="-99" max="999" step="1" value="10" required aria-describedby="lab-sd-cache-input-note"></label>
-<label for="lab-sd-cache-updated"><span>寫入後的新值</span><input id="lab-sd-cache-updated" name="updated" type="number" min="-99" max="999" step="1" value="20" required aria-describedby="lab-sd-cache-input-note"></label>
-<label for="lab-sd-cache-invalidation"><span>失效時機</span><select id="lab-sd-cache-invalidation" name="invalidation" aria-describedby="lab-sd-cache-input-note"><option value="delayed" selected>R2 讀完才刪除</option><option value="immediate">R2 讀取前刪除</option><option value="none">完全不刪除</option></select></label>
-  <button type="submit" class="sd-lab-apply">套用輸入</button>
-  <p class="sd-lab-input-note" id="lab-sd-cache-input-note">修改後按「套用輸入」，從第一步重新觀察。每次只執行一個固定事件，不使用真實網路或計時器。</p>
-  <p class="sd-lab-error" role="alert" hidden></p>
+  <label for="lab-sd-cache-initial"><span>資料庫原值</span><input id="lab-sd-cache-initial" name="initial" type="number" min="-99" max="999" step="1" value="10" required aria-describedby="lab-sd-cache-error"></label>
+<label for="lab-sd-cache-updated"><span>寫入後的新值</span><input id="lab-sd-cache-updated" name="updated" type="number" min="-99" max="999" step="1" value="20" required aria-describedby="lab-sd-cache-error"></label>
+<label for="lab-sd-cache-invalidation"><span>更新與回填順序</span><select id="lab-sd-cache-invalidation" name="invalidation" aria-describedby="lab-sd-cache-error"><option value="delayed" selected>R2 讀完才刪除</option><option value="immediate">R2 讀取前刪除</option><option value="none">完全不刪除</option><option value="race">刪除後，舊讀取回填</option></select></label>
+  <button type="submit" class="sd-lab-apply">套用</button>
+
+  <p id="lab-sd-cache-error" class="sd-lab-error" role="alert" hidden></p>
   </form>
-  <div class="sd-lab-controls js-only" role="group" aria-label="Cache-aside 與失效空窗：步驟控制"><button type="button" data-sd-action="prev">← 上一步</button><button type="button" data-sd-action="next">下一步 →</button><button type="button" data-sd-action="reset">重設步驟</button><button type="button" data-sd-action="last">查看結果</button><span class="sd-lab-step">步驟 1</span></div>
-  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><div class="sd-lab-invariants"><strong>這一步的不變量</strong><ul class="sd-lab-checks"></ul></div></div>
-  <div class="sd-lab-principle"><p><strong>要守住什麼</strong> 快取可以落後於資料庫。更新資料庫與刪除快取之間的空窗，會影響下一次讀取；命中率高不代表資料新。</p><p><strong>何時停止</strong> R1、寫入 W、R2、R3 依序完成就停止。沒有失效時，停止觀測不表示資料已一致。</p><p class="sd-lab-challenge"><strong>換一組試試</strong> 改成「完全不刪除」，再把原值和新值設成相同數字。回覆數字一樣，能證明版本一樣嗎？</p></div>
-  <noscript><p class="sd-lab-noscript">啟用 JavaScript 可逐步操作；上方保留模型假設與觀察重點，詳細解說請見對應章節。</p></noscript>
+  <div class="sd-lab-controls js-only" role="group" aria-label="快取旁路步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
+  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  <div class="sd-lab-principle"><p class="sd-lab-challenge">選「刪除後，舊讀取回填」。W 已經刪過快取，R3 為何仍讀到 v1？再把原值與新值設成相同數字，觀察版本。</p></div>
 </section>
 
 <section class="sd-lab" id="lab-sd-queue" data-sd-lab="queue" aria-labelledby="lab-sd-queue-title">
-  <div class="sd-lab-heading"><span class="sd-lab-number">02</span><div><p class="sd-lab-subtitle">有界佇列、背壓與拒絕</p><h3 id="lab-sd-queue-title">佇列滿了，工作留在哪裡？</h3></div><a class="sd-lab-chapter-link" href="#chapter-06">回到第 6 章 ↗</a></div>
-  <p class="sd-lab-assumption"><strong>模型假設</strong> 單一 FIFO 佇列；每拍先接收，再處理。每份工作成本相同，沒有 worker 失敗。來源待送代表尚未送入的需求；此模型沒有保證來源儲存空間也有限。</p>
+  <div class="sd-lab-heading"><span class="sd-lab-number">02</span><div><h3 id="lab-sd-queue-title">佇列與背壓</h3></div><a class="sd-lab-chapter-link" href="#chapter-06">第 06 章</a></div>
+  <p class="sd-lab-assumption">每拍先入列，再由 worker 處理；每份工作成本相同。暫停送入的工作保留在來源待送區。</p>
   <form class="sd-lab-inputs js-only" novalidate>
-  <label for="lab-sd-queue-arrivals"><span>每拍新工作數（1–8 拍，各 0–6）</span><input id="lab-sd-queue-arrivals" name="arrivals" type="text" maxlength="100" spellcheck="false" value="4, 3, 0, 2" required aria-describedby="lab-sd-queue-input-note"></label>
-<label for="lab-sd-queue-capacity"><span>佇列容量</span><input id="lab-sd-queue-capacity" name="capacity" type="number" min="1" max="6" step="1" value="3" required aria-describedby="lab-sd-queue-input-note"></label>
-<label for="lab-sd-queue-service"><span>每拍處理量</span><input id="lab-sd-queue-service" name="service" type="number" min="0" max="4" step="1" value="1" required aria-describedby="lab-sd-queue-input-note"></label>
-<label for="lab-sd-queue-policy"><span>佇列滿載時</span><select id="lab-sd-queue-policy" name="policy" aria-describedby="lab-sd-queue-input-note"><option value="pause" selected>來源暫停送入</option><option value="reject">明確拒絕新工作</option></select></label>
-  <button type="submit" class="sd-lab-apply">套用輸入</button>
-  <p class="sd-lab-input-note" id="lab-sd-queue-input-note">修改後按「套用輸入」，從第一步重新觀察。每次只執行一個固定事件，不使用真實網路或計時器。</p>
-  <p class="sd-lab-error" role="alert" hidden></p>
+  <label for="lab-sd-queue-arrivals"><span>每拍新工作數（1–8 拍，各 0–6）</span><input id="lab-sd-queue-arrivals" name="arrivals" type="text" maxlength="100" spellcheck="false" value="4, 3, 0, 2" required aria-describedby="lab-sd-queue-error"></label>
+<label for="lab-sd-queue-capacity"><span>佇列容量</span><input id="lab-sd-queue-capacity" name="capacity" type="number" min="1" max="6" step="1" value="3" required aria-describedby="lab-sd-queue-error"></label>
+<label for="lab-sd-queue-service"><span>每拍處理量</span><input id="lab-sd-queue-service" name="service" type="number" min="0" max="4" step="1" value="1" required aria-describedby="lab-sd-queue-error"></label>
+<label for="lab-sd-queue-policy"><span>佇列滿載時</span><select id="lab-sd-queue-policy" name="policy" aria-describedby="lab-sd-queue-error"><option value="pause" selected>來源暫停送入</option><option value="reject">明確拒絕新工作</option></select></label>
+  <button type="submit" class="sd-lab-apply">套用</button>
+
+  <p id="lab-sd-queue-error" class="sd-lab-error" role="alert" hidden></p>
   </form>
-  <div class="sd-lab-controls js-only" role="group" aria-label="有界佇列、背壓與拒絕：步驟控制"><button type="button" data-sd-action="prev">← 上一步</button><button type="button" data-sd-action="next">下一步 →</button><button type="button" data-sd-action="reset">重設步驟</button><button type="button" data-sd-action="last">查看結果</button><span class="sd-lab-step">步驟 1</span></div>
-  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><div class="sd-lab-invariants"><strong>這一步的不變量</strong><ul class="sd-lab-checks"></ul></div></div>
-  <div class="sd-lab-principle"><p><strong>要守住什麼</strong> 佇列不能超過容量；提出的工作必須能在來源待送、佇列、已完成或已拒絕中找到。背壓會把等待往上游傳，無法憑空消除需求。</p><p><strong>何時停止</strong> 輸入停止後，有處理能力就繼續排空；處理量為 0 時，明確以「仍有積壓」結束觀測。</p><p class="sd-lab-challenge"><strong>換一組試試</strong> 把處理量設成 0，比較暫停與拒絕。哪一種還保留工作？哪個位置會持續累積？</p></div>
-  <noscript><p class="sd-lab-noscript">啟用 JavaScript 可逐步操作；上方保留模型假設與觀察重點，詳細解說請見對應章節。</p></noscript>
+  <div class="sd-lab-controls js-only" role="group" aria-label="佇列與背壓步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
+  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  <div class="sd-lab-principle"><p class="sd-lab-challenge">把處理量設成 0，比較暫停與拒絕：工作分別留在哪裡？哪個位置還需要容量上限？</p></div>
 </section>
 
 <section class="sd-lab" id="lab-sd-retry" data-sd-lab="retry" aria-labelledby="lab-sd-retry-title">
-  <div class="sd-lab-heading"><span class="sd-lab-number">03</span><div><p class="sd-lab-subtitle">至少一次投遞與冪等效果</p><h3 id="lab-sd-retry-title">ACK 不見了，能直接再做一次嗎？</h3></div><a class="sd-lab-chapter-link" href="#chapter-09">回到第 9 章 ↗</a></div>
-  <p class="sd-lab-assumption"><strong>模型假設</strong> 只有 ACK 會遺失；重送沿用相同 ID，訊息內容不變。啟用去重時，業務效果與去重紀錄在同一資料庫交易提交，紀錄全程保留。未模擬外部付款、寄信或跨系統交易。</p>
+  <div class="sd-lab-heading"><span class="sd-lab-number">03</span><div><h3 id="lab-sd-retry-title">重試與冪等</h3></div><a class="sd-lab-chapter-link" href="#chapter-09">第 09 章</a></div>
+  <p class="sd-lab-assumption">M1 的 ACK 可遺失，重試沿用同一 ID。啟用去重時，業務變更與 ID 在同一筆交易提交，紀錄全程保留。</p>
   <form class="sd-lab-inputs js-only" novalidate>
-  <label for="lab-sd-retry-amount"><span>每筆增加量</span><input id="lab-sd-retry-amount" name="amount" type="number" min="1" max="100" step="1" value="5" required aria-describedby="lab-sd-retry-input-note"></label>
-<label for="lab-sd-retry-lostAcks"><span>M1 遺失 ACK 次數</span><input id="lab-sd-retry-lostAcks" name="lostAcks" type="number" min="0" max="3" step="1" value="1" required aria-describedby="lab-sd-retry-input-note"></label>
-<label for="lab-sd-retry-dedupe"><span>冪等處理</span><select id="lab-sd-retry-dedupe" name="dedupe" aria-describedby="lab-sd-retry-input-note"><option value="on" selected>同一交易保存去重紀錄</option><option value="off">不保存去重紀錄</option></select></label>
-  <button type="submit" class="sd-lab-apply">套用輸入</button>
-  <p class="sd-lab-input-note" id="lab-sd-retry-input-note">修改後按「套用輸入」，從第一步重新觀察。每次只執行一個固定事件，不使用真實網路或計時器。</p>
-  <p class="sd-lab-error" role="alert" hidden></p>
+  <label for="lab-sd-retry-amount"><span>每筆增加量</span><input id="lab-sd-retry-amount" name="amount" type="number" min="1" max="100" step="1" value="5" required aria-describedby="lab-sd-retry-error"></label>
+<label for="lab-sd-retry-lostAcks"><span>M1 遺失 ACK 次數</span><input id="lab-sd-retry-lostAcks" name="lostAcks" type="number" min="0" max="3" step="1" value="1" required aria-describedby="lab-sd-retry-error"></label>
+<label for="lab-sd-retry-dedupe"><span>冪等處理</span><select id="lab-sd-retry-dedupe" name="dedupe" aria-describedby="lab-sd-retry-error"><option value="on" selected>同一交易保存去重紀錄</option><option value="off">不保存去重紀錄</option></select></label>
+  <button type="submit" class="sd-lab-apply">套用</button>
+
+  <p id="lab-sd-retry-error" class="sd-lab-error" role="alert" hidden></p>
   </form>
-  <div class="sd-lab-controls js-only" role="group" aria-label="至少一次投遞與冪等效果：步驟控制"><button type="button" data-sd-action="prev">← 上一步</button><button type="button" data-sd-action="next">下一步 →</button><button type="button" data-sd-action="reset">重設步驟</button><button type="button" data-sd-action="last">查看結果</button><span class="sd-lab-step">步驟 1</span></div>
-  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><div class="sd-lab-invariants"><strong>這一步的不變量</strong><ul class="sd-lab-checks"></ul></div></div>
-  <div class="sd-lab-principle"><p><strong>要守住什麼</strong> 傳送端逾時不代表消費者沒執行。相同操作 ID 應重用原結果；M2 即使內容和 M1 一樣，仍是另一個合法操作。</p><p><strong>何時停止</strong> M1 最終收到 ACK，再完成 M2 即停止。這個模型展示業務效果去重；端到端 exactly-once 還須涵蓋傳輸、持久化與外部副作用。</p><p class="sd-lab-challenge"><strong>換一組試試</strong> 關閉去重，把 ACK 遺失次數改成 3。投遞次數、提交次數與原本預期的兩筆操作各是多少？</p></div>
-  <noscript><p class="sd-lab-noscript">啟用 JavaScript 可逐步操作；上方保留模型假設與觀察重點，詳細解說請見對應章節。</p></noscript>
+  <div class="sd-lab-controls js-only" role="group" aria-label="重試與冪等步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
+  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  <div class="sd-lab-principle"><p class="sd-lab-challenge">關閉去重，把 ACK 遺失次數改成 3。預期只有 M1、M2 兩筆操作，實際提交幾次？</p></div>
 </section>
 
 <section class="sd-lab" id="lab-sd-replication" data-sd-lab="replication" aria-labelledby="lab-sd-replication-title">
-  <div class="sd-lab-heading"><span class="sd-lab-number">04</span><div><p class="sd-lab-subtitle">非同步複寫與 read-your-writes</p><h3 id="lab-sd-replication-title">寫入成功，副本為什麼還看不到？</h3></div><a class="sd-lab-chapter-link" href="#chapter-02">回到第 2 章 ↗</a></div>
-  <p class="sd-lab-assumption"><strong>模型假設</strong> 單一寫入者、同一個 key、單一主節點與副本；日誌依序送達，沒有故障或主節點切換。每次寫入與讀取各推進一拍，時間到就套用日誌。</p>
+  <div class="sd-lab-heading"><span class="sd-lab-number">04</span><div><h3 id="lab-sd-replication-title">複寫與一致性</h3></div><a class="sd-lab-chapter-link" href="#chapter-02">第 02 章</a></div>
+  <p class="sd-lab-assumption">單一寫入者、主節點與副本。每次讀寫推進一拍，日誌依序套用；token 表示此工作階段已確認的版本。</p>
   <form class="sd-lab-inputs js-only" novalidate>
-  <label for="lab-sd-replication-writes"><span>依序寫入的值（1–4 筆，−99–999）</span><input id="lab-sd-replication-writes" name="writes" type="text" maxlength="100" spellcheck="false" value="10, 20" required aria-describedby="lab-sd-replication-input-note"></label>
-<label for="lab-sd-replication-lag"><span>複寫延遲（拍）</span><input id="lab-sd-replication-lag" name="lag" type="number" min="0" max="3" step="1" value="2" required aria-describedby="lab-sd-replication-input-note"></label>
-<label for="lab-sd-replication-readMode"><span>讀取策略</span><select id="lab-sd-replication-readMode" name="readMode" aria-describedby="lab-sd-replication-input-note"><option value="replica" selected>直接讀副本</option><option value="leader">固定讀主節點</option><option value="session">帶 token，落後就改讀主節點</option></select></label>
-  <button type="submit" class="sd-lab-apply">套用輸入</button>
-  <p class="sd-lab-input-note" id="lab-sd-replication-input-note">修改後按「套用輸入」，從第一步重新觀察。每次只執行一個固定事件，不使用真實網路或計時器。</p>
-  <p class="sd-lab-error" role="alert" hidden></p>
+  <label for="lab-sd-replication-writes"><span>依序寫入的值（1–4 筆，−99–999）</span><input id="lab-sd-replication-writes" name="writes" type="text" maxlength="100" spellcheck="false" value="10, 20" required aria-describedby="lab-sd-replication-error"></label>
+<label for="lab-sd-replication-lag"><span>複寫延遲（拍）</span><input id="lab-sd-replication-lag" name="lag" type="number" min="0" max="3" step="1" value="2" required aria-describedby="lab-sd-replication-error"></label>
+<label for="lab-sd-replication-readMode"><span>讀取策略</span><select id="lab-sd-replication-readMode" name="readMode" aria-describedby="lab-sd-replication-error"><option value="replica" selected>直接讀副本</option><option value="leader">固定讀主節點</option><option value="session">帶 token，落後就改讀主節點</option></select></label>
+  <button type="submit" class="sd-lab-apply">套用</button>
+
+  <p id="lab-sd-replication-error" class="sd-lab-error" role="alert" hidden></p>
   </form>
-  <div class="sd-lab-controls js-only" role="group" aria-label="非同步複寫與 read-your-writes：步驟控制"><button type="button" data-sd-action="prev">← 上一步</button><button type="button" data-sd-action="next">下一步 →</button><button type="button" data-sd-action="reset">重設步驟</button><button type="button" data-sd-action="last">查看結果</button><span class="sd-lab-step">步驟 1</span></div>
-  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><div class="sd-lab-invariants"><strong>這一步的不變量</strong><ul class="sd-lab-checks"></ul></div></div>
-  <div class="sd-lab-principle"><p><strong>要守住什麼</strong> 副本套用的是主節點日誌的前綴。工作階段 token 記錄自己已確認的版本；副本未追上時，讀取策略要決定等待、改讀或失敗。</p><p><strong>何時停止</strong> 所有寫入完成，待複寫日誌排空，再讀一次即停止。多寫入者的線性一致性另需加入並行操作與全域順序的驗證。</p><p class="sd-lab-challenge"><strong>換一組試試</strong> 先用延遲 3 拍讀副本，再改成帶 token。回覆由哪個節點提供？付出了什麼負載或延遲上的代價？</p></div>
-  <noscript><p class="sd-lab-noscript">啟用 JavaScript 可逐步操作；上方保留模型假設與觀察重點，詳細解說請見對應章節。</p></noscript>
+  <div class="sd-lab-controls js-only" role="group" aria-label="複寫與一致性步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
+  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  <div class="sd-lab-principle"><p class="sd-lab-challenge">用延遲 3 拍讀副本，再改成帶 token。哪些讀取改由主節點服務？</p></div>
 </section>
 
 <section class="sd-lab" id="lab-sd-token-bucket" data-sd-lab="token-bucket" aria-labelledby="lab-sd-token-bucket-title">
-  <div class="sd-lab-heading"><span class="sd-lab-number">05</span><div><p class="sd-lab-subtitle">Token bucket 的突發額度</p><h3 id="lab-sd-token-bucket-title">同樣一批流量，哪些請求能通過？</h3></div><a class="sd-lab-chapter-link" href="#chapter-12">回到第 12 章 ↗</a></div>
-  <p class="sd-lab-assumption"><strong>模型假設</strong> 桶一開始是滿的，t=0 不再補充；後續每拍先補入整數權杖，再依序處理請求。只有單一原子計數器；拒絕後不排隊、不重試，未模擬多節點時鐘。</p>
+  <div class="sd-lab-heading"><span class="sd-lab-number">05</span><div><h3 id="lab-sd-token-bucket-title">權杖桶限流</h3></div><a class="sd-lab-chapter-link" href="#chapter-12">第 12 章</a></div>
+  <p class="sd-lab-assumption">t=0 滿桶；之後每拍先補充，再依序扣除請求成本。權杖不足就拒絕，該請求結束。</p>
   <form class="sd-lab-inputs js-only" novalidate>
-  <label for="lab-sd-token-bucket-arrivals"><span>每拍請求數（1–8 拍，各 0–6）</span><input id="lab-sd-token-bucket-arrivals" name="arrivals" type="text" maxlength="100" spellcheck="false" value="6, 2, 4, 0, 3" required aria-describedby="lab-sd-token-bucket-input-note"></label>
-<label for="lab-sd-token-bucket-capacity"><span>桶容量</span><input id="lab-sd-token-bucket-capacity" name="capacity" type="number" min="1" max="8" step="1" value="4" required aria-describedby="lab-sd-token-bucket-input-note"></label>
-<label for="lab-sd-token-bucket-rate"><span>每拍補充量</span><input id="lab-sd-token-bucket-rate" name="rate" type="number" min="0" max="4" step="1" value="2" required aria-describedby="lab-sd-token-bucket-input-note"></label>
-<label for="lab-sd-token-bucket-cost"><span>每次請求成本</span><input id="lab-sd-token-bucket-cost" name="cost" type="number" min="1" max="8" step="1" value="1" required aria-describedby="lab-sd-token-bucket-input-note"></label>
-  <button type="submit" class="sd-lab-apply">套用輸入</button>
-  <p class="sd-lab-input-note" id="lab-sd-token-bucket-input-note">修改後按「套用輸入」，從第一步重新觀察。每次只執行一個固定事件，不使用真實網路或計時器。</p>
-  <p class="sd-lab-error" role="alert" hidden></p>
+  <label for="lab-sd-token-bucket-arrivals"><span>每拍請求數（1–8 拍，各 0–6）</span><input id="lab-sd-token-bucket-arrivals" name="arrivals" type="text" maxlength="100" spellcheck="false" value="6, 2, 4, 0, 3" required aria-describedby="lab-sd-token-bucket-error"></label>
+<label for="lab-sd-token-bucket-capacity"><span>桶容量</span><input id="lab-sd-token-bucket-capacity" name="capacity" type="number" min="1" max="8" step="1" value="4" required aria-describedby="lab-sd-token-bucket-error"></label>
+<label for="lab-sd-token-bucket-rate"><span>每拍補充量</span><input id="lab-sd-token-bucket-rate" name="rate" type="number" min="0" max="4" step="1" value="2" required aria-describedby="lab-sd-token-bucket-error"></label>
+<label for="lab-sd-token-bucket-cost"><span>每次請求成本</span><input id="lab-sd-token-bucket-cost" name="cost" type="number" min="1" max="8" step="1" value="1" required aria-describedby="lab-sd-token-bucket-error"></label>
+  <button type="submit" class="sd-lab-apply">套用</button>
+
+  <p id="lab-sd-token-bucket-error" class="sd-lab-error" role="alert" hidden></p>
   </form>
-  <div class="sd-lab-controls js-only" role="group" aria-label="Token bucket 的突發額度：步驟控制"><button type="button" data-sd-action="prev">← 上一步</button><button type="button" data-sd-action="next">下一步 →</button><button type="button" data-sd-action="reset">重設步驟</button><button type="button" data-sd-action="last">查看結果</button><span class="sd-lab-step">步驟 1</span></div>
-  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><div class="sd-lab-invariants"><strong>這一步的不變量</strong><ul class="sd-lab-checks"></ul></div></div>
-  <div class="sd-lab-principle"><p><strong>要守住什麼</strong> 餘額不可為負，也不能超過桶容量。已放行的總成本受初始突發額度加上時間補充量限制；權杖不足就明確拒絕。</p><p><strong>何時停止</strong> 輸入各拍的請求全部判定後停止；即使桶仍有餘額，也不憑空產生新請求。</p><p class="sd-lab-challenge"><strong>換一組試試</strong> 把單次成本設得比桶容量大，再加入幾拍 0 請求。等得更久能讓它通過嗎？</p></div>
-  <noscript><p class="sd-lab-noscript">啟用 JavaScript 可逐步操作；上方保留模型假設與觀察重點，詳細解說請見對應章節。</p></noscript>
+  <div class="sd-lab-controls js-only" role="group" aria-label="權杖桶限流步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
+  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  <div class="sd-lab-principle"><p class="sd-lab-challenge">把單次成本設得比桶容量大，再加入幾拍 0 請求。等待後的餘額是否足以放行？</p></div>
 </section>
 
 <section class="sd-lab" id="lab-sd-hashing" data-sd-lab="hashing" aria-labelledby="lab-sd-hashing-title">
-  <div class="sd-lab-heading"><span class="sd-lab-number">06</span><div><p class="sd-lab-subtitle">一致性雜湊的區間變化</p><h3 id="lab-sd-hashing-title">加一台機器，哪些 key 必須改路由？</h3></div><a class="sd-lab-chapter-link" href="#chapter-11">回到第 11 章 ↗</a></div>
-  <p class="sd-lab-assumption"><strong>模型假設</strong> 位置直接輸入在 0–99 的環上，每台機器只有一個位置。key 歸順時針第一個節點，包含相等位置；沒有虛擬節點、副本或實際資料搬移。</p>
+  <div class="sd-lab-heading"><span class="sd-lab-number">06</span><div><h3 id="lab-sd-hashing-title">一致性雜湊</h3></div><a class="sd-lab-chapter-link" href="#chapter-11">第 11 章</a></div>
+  <p class="sd-lab-assumption">0–99 的環上，每個 key 路由到順時針第一個節點，包含相等位置。每台機器占一個位置。</p>
   <form class="sd-lab-inputs js-only" novalidate>
-  <label for="lab-sd-hashing-nodes"><span>既有節點位置（2–5 個，不重複）</span><input id="lab-sd-hashing-nodes" name="nodes" type="text" maxlength="100" spellcheck="false" value="15, 45, 80" required aria-describedby="lab-sd-hashing-input-note"></label>
-<label for="lab-sd-hashing-added"><span>新增節點 N 的位置</span><input id="lab-sd-hashing-added" name="added" type="number" min="0" max="99" step="1" value="60" required aria-describedby="lab-sd-hashing-input-note"></label>
-<label for="lab-sd-hashing-keys"><span>key 的雜湊位置（1–10 個，各 0–99）</span><input id="lab-sd-hashing-keys" name="keys" type="text" maxlength="100" spellcheck="false" value="5, 18, 32, 50, 72, 91" required aria-describedby="lab-sd-hashing-input-note"></label>
-  <button type="submit" class="sd-lab-apply">套用輸入</button>
-  <p class="sd-lab-input-note" id="lab-sd-hashing-input-note">修改後按「套用輸入」，從第一步重新觀察。每次只執行一個固定事件，不使用真實網路或計時器。</p>
-  <p class="sd-lab-error" role="alert" hidden></p>
+  <label for="lab-sd-hashing-nodes"><span>既有節點位置（2–5 個，不重複）</span><input id="lab-sd-hashing-nodes" name="nodes" type="text" maxlength="100" spellcheck="false" value="15, 45, 80" required aria-describedby="lab-sd-hashing-error"></label>
+<label for="lab-sd-hashing-added"><span>新增節點 N 的位置</span><input id="lab-sd-hashing-added" name="added" type="number" min="0" max="99" step="1" value="60" required aria-describedby="lab-sd-hashing-error"></label>
+<label for="lab-sd-hashing-keys"><span>key 的雜湊位置（1–10 個，各 0–99）</span><input id="lab-sd-hashing-keys" name="keys" type="text" maxlength="100" spellcheck="false" value="5, 18, 32, 50, 72, 91" required aria-describedby="lab-sd-hashing-error"></label>
+  <button type="submit" class="sd-lab-apply">套用</button>
+
+  <p id="lab-sd-hashing-error" class="sd-lab-error" role="alert" hidden></p>
   </form>
-  <div class="sd-lab-controls js-only" role="group" aria-label="一致性雜湊的區間變化：步驟控制"><button type="button" data-sd-action="prev">← 上一步</button><button type="button" data-sd-action="next">下一步 →</button><button type="button" data-sd-action="reset">重設步驟</button><button type="button" data-sd-action="last">查看結果</button><span class="sd-lab-step">步驟 1</span></div>
-  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><div class="sd-lab-invariants"><strong>這一步的不變量</strong><ul class="sd-lab-checks"></ul></div></div>
-  <div class="sd-lab-principle"><p><strong>要守住什麼</strong> 加入 N 後，只有落在其前一節點到 N 之間的 key 改向 N。其他 key 的原負責節點不變；負載是否平均要另外觀察。</p><p><strong>何時停止</strong> 每個 key 的舊路由與新路由都算完即停止。完成路由計算後，接著驗證資料複製、雙版本路由與線上切換流程。</p><p class="sd-lab-challenge"><strong>換一組試試</strong> 把 N 改放到 0，並加入位置 99、0、1 的 key。跨過環的起點時，開區間與閉區間各包含誰？</p></div>
-  <noscript><p class="sd-lab-noscript">啟用 JavaScript 可逐步操作；上方保留模型假設與觀察重點，詳細解說請見對應章節。</p></noscript>
+  <div class="sd-lab-controls js-only" role="group" aria-label="一致性雜湊步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
+  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  <div class="sd-lab-principle"><p class="sd-lab-challenge">把 N 放到 0，加入位置 99、0、1 的 key，查看跨過環起點時的路由。</p></div>
 </section>

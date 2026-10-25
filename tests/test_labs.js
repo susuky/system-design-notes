@@ -5,7 +5,22 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const labs = require('../source/labs.js');
-const {algorithms, config} = labs;
+const {algorithms} = labs;
+// Exercise the actual shipped controls instead of keeping a second copy of their defaults and prose.
+const html = fs.readFileSync(path.join(__dirname, '../source/labs.html'), 'utf8');
+const attrs = text => Object.fromEntries([...text.matchAll(/([\w:-]+)="([^"]*)"/g)].map(m => [m[1], m[2]]));
+const config = [...html.matchAll(/<section\b[^>]*data-sd-lab="([^"]+)"[^>]*>([\s\S]*?)<\/section>/g)].map(([, key, body]) => {
+  const defaults = {}, fields = [];
+  for (const m of body.matchAll(/<input\b([^>]*)>|<select\b([^>]*)>([\s\S]*?)<\/select>/g)) {
+    const field = attrs(m[1] || m[2]);
+    if (m[2]) {
+      const options = [...m[3].matchAll(/<option\b([^>]*)>/g)];
+      field.value = attrs((options.find(o => /\bselected\b/.test(o[1])) || options[0])[1]).value;
+    }
+    defaults[field.name] = field.value; fields.push(field);
+  }
+  return {key, defaults, fields};
+});
 let traces = 0, framesChecked = 0, assertions = 0;
 function ok(value, message) {assertions++; assert.ok(value, message);}
 function equal(actual, expected, message) {assertions++; assert.deepEqual(actual, expected, message);}
@@ -41,8 +56,15 @@ for (const c of config) {
   const lastSnapshot = JSON.stringify(frames.at(-1));
   frames[0].state.testMutation = true;
   equal(JSON.stringify(frames.at(-1)), lastSnapshot, `${c.key}: changing a previous frame cannot affect later frames`);
-  ok(c.assumption.length > 35 && c.principle.length > 25 && c.stop.length > 15);
 }
+
+const race = run('cache', {initial: 10, updated: 20, invalidation: 'race'});
+equal(race.at(-1).result.reads.map(r => r.version), [1, 1, 1]);
+equal(race.at(-1).result.stale, 2);
+equal(race.at(-1).state.hits + race.at(-1).state.misses, 3);
+ok(race.findIndex(f => f.phase === '刪除快取') < race.findIndex(f => f.phase === '舊值回填'));
+equal(race.find(f => f.phase === '刪除快取').state.cache, null);
+equal(race.at(-1).state.db.version, 2);
 equal(config.map(c => c.key), Object.keys(algorithms));
 
 // Cache: stale is about the committed version, including writes with the same value.
@@ -258,7 +280,6 @@ equal(JSON.stringify(context.SystemDesignLabs.algorithms.cache(config[0].default
 ok(!/\b(fetch|XMLHttpRequest|WebSocket|setInterval|setTimeout|eval)\s*\(/.test(source));
 
 // Shipped static mount: unique IDs, complete labels and no collision with the preserved legacy labs.
-const html = fs.readFileSync(path.join(__dirname, '../source/labs.html'), 'utf8');
 const css = fs.readFileSync(path.join(__dirname, '../source/labs.css'), 'utf8');
 const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
 equal(ids.length, new Set(ids).size);
@@ -268,7 +289,6 @@ ok(!html.includes('<article') && !html.includes('data-lab=') && !html.includes('
 for (const c of config) {
   ok(ids.includes(`lab-sd-${c.key}`));
   for (const f of c.fields) ok(html.includes(`for="lab-sd-${c.key}-${f.name}"`));
-  ok(html.includes(labs.escape(c.assumption)) && html.includes(labs.escape(c.stop)));
 }
 equal((html.match(/role="status"/g) || []).length, 6); equal((html.match(/role="alert"/g) || []).length, 6);
 ok(css.includes('@media print') && css.includes('@media(max-width:650px)') && css.includes('focus-visible'));

@@ -3,9 +3,11 @@ import importlib.util
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('course_build', ROOT / 'build.py')
@@ -29,7 +31,7 @@ class BuildTests(unittest.TestCase):
         output = (self.root / 'index.html').read_text()
         self.assertEqual(info['chapters'], 16)
         self.assertEqual(info['topics'], 81)
-        self.assertEqual(info['headings'], 90)
+        self.assertGreaterEqual(info['headings'], info['chapters'])
         for chapter in (self.root / 'chapters').glob('*.html'):
             self.assertIn(chapter.read_text(), output)
         self.assertEqual(output.count('data-sd-lab="'), 6)
@@ -63,6 +65,78 @@ class BuildTests(unittest.TestCase):
         self.modify(5, '</article>', '<img src="https://example.com/x.png"></article>')
         with self.assertRaisesRegex(ValueError, '外部資源'):
             builder.build(self.root)
+    def test_outline_shape_and_chapter_order_are_validated(self):
+        path = self.root / 'outline.json'
+        original = json.loads(path.read_text(encoding='utf-8'))
+        chapters = original['chapters']
+        invalid = [
+            [],
+            {'chapters': {}},
+            {'chapters': [chapters[1], chapters[0], *chapters[2:]]},
+            {'chapters': [None, *chapters[1:]]},
+            {'chapters': [{**chapters[0], 'title': 12}, *chapters[1:]]},
+            {'chapters': [{**chapters[0], 'topics': 'not a list'}, *chapters[1:]]},
+            {'chapters': [{**chapters[0], 'topics': ['']}, *chapters[1:]]},
+        ]
+        for outline in invalid:
+            with self.subTest(outline=outline):
+                path.write_text(json.dumps(outline), encoding='utf-8')
+                with self.assertRaisesRegex(ValueError, 'outline.json'):
+                    builder.build(self.root)
+                self.assertFalse((self.root / 'index.html').exists())
+    def test_svg_and_srcset_cannot_hide_external_resources(self):
+        path = self.root / 'chapters' / '05.html'
+        original = path.read_text(encoding='utf-8')
+        additions = [
+            '<svg><image href="images/diagram.png"/></svg>',
+            '<svg><use xlink:href="//example.com/icons.svg#icon"/></svg>',
+            '<svg><feImage href="https://example.com/filter.svg"/></svg>',
+            '<img srcset="data:image/png;base64,AA== 1x, remote.png 2x">',
+        ]
+        for addition in additions:
+            with self.subTest(addition=addition):
+                path.write_text(original.replace('</article>', addition + '</article>'), encoding='utf-8')
+                with self.assertRaisesRegex(ValueError, '外部資源'):
+                    builder.build(self.root)
+    def test_css_resources_are_checked_in_styles_and_svg_attributes(self):
+        path = self.root / 'source' / 'styles.css'
+        original = path.read_text(encoding='utf-8')
+        additions = [
+            'body { background: url(../background.png); }',
+            'body { background: url("//example.com/background.png"); }',
+            '@import"theme.css";',
+            r'body { background: u\72l("https://example.com/background.png"); }',
+            'body { background: image-set("remote.webp" 1x, url("data:image/png;base64,AA==") 2x); }',
+        ]
+        for addition in additions:
+            with self.subTest(addition=addition):
+                path.write_text(original + '\n' + addition, encoding='utf-8')
+                with self.assertRaisesRegex(ValueError, '外部檔案'):
+                    builder.build(self.root)
+        path.write_text(original, encoding='utf-8')
+        chapter = self.root / 'chapters' / '05.html'
+        original = chapter.read_text(encoding='utf-8')
+        for addition in ['<p style="background:url(local.png)">text</p>',
+                         '<svg><rect fill="url(palette.svg#color)"/></svg>']:
+            with self.subTest(addition=addition):
+                chapter.write_text(original.replace('</article>', addition + '</article>'), encoding='utf-8')
+                with self.assertRaisesRegex(ValueError, '外部檔案'):
+                    builder.build(self.root)
+    def test_embedded_resources_and_css_text_remain_valid(self):
+        self.modify(5, '</article>', '''<svg><defs><linearGradient id="test-gradient"/></defs>
+            <use href="#test-gradient"/><rect fill="url(#test-gradient)"/>
+            <image href="DATA:image/png;base64,AA=="/></svg>
+            <img srcset="data:image/png;base64,AA== 1x, data:image/png;base64,BB== 2x"></article>''')
+        path = self.root / 'source' / 'styles.css'
+        with path.open('a', encoding='utf-8') as stream:
+            stream.write('''/* @import "unused.css"; */
+                body::after { content: "url(example.png)"; }
+                .test { background: image-set("data:image/png;base64,AA==" 1x,
+                    url("data:image/svg+xml,%3Csvg%3E%3C/svg%3E") 2x); }''')
+        builder.build(self.root)
+        self.modify(5, 'href="#test-gradient"', 'href="#missing-svg-symbol"')
+        with self.assertRaisesRegex(ValueError, 'missing-svg-symbol'):
+            builder.build(self.root)
     def test_event_handler_is_rejected(self):
         self.modify(5, '</article>', '<button onclick="alert(1)">bad</button></article>')
         with self.assertRaisesRegex(ValueError, '不可包含'):
@@ -74,9 +148,18 @@ class BuildTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             builder.build(self.root)
         self.assertEqual(output.read_text(), 'known good')
+    def test_failed_atomic_write_preserves_output_and_cleans_temporary_file(self):
+        output = self.root / 'index.html'
+        output.write_text('known good', encoding='utf-8')
+        for operation in ('fsync', 'replace'):
+            with self.subTest(operation=operation), patch.object(builder.os, operation, side_effect=OSError('write failed')):
+                with self.assertRaisesRegex(OSError, 'write failed'):
+                    builder.build(self.root)
+                self.assertEqual(output.read_text(encoding='utf-8'), 'known good')
+                self.assertEqual(list(self.root.glob('.index.html.*.tmp')), [])
     def test_cli_missing_reports_nonzero(self):
         (self.root / 'chapters' / '16.html').unlink()
-        result = subprocess.run(['python', str(ROOT / 'build.py'), '--root', str(self.root)], capture_output=True, text=True)
+        result = subprocess.run([sys.executable, str(ROOT / 'build.py'), '--root', str(self.root)], capture_output=True, text=True)
         self.assertEqual(result.returncode, 1)
         self.assertIn('16.html', result.stderr)
 

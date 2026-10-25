@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** UI state/DOM logic smoke tests. This harness is NOT a browser or visual QA. */
+/** UI state and DOM regression tests using a simulated document. */
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -14,7 +14,7 @@ const labsSource=fs.readFileSync(path.join(here,'../source/labs.js'),'utf8');
 const visualsSource=fs.readFileSync(path.join(here,'../source/visuals.js'),'utf8');
 const checks=[];
 function pass(label){checks.push(label);}
-function createEnvironment({denied=false,hash='',mobile=false,saved=null}={}){
+function createEnvironment({denied=false,hash='',mobile=false,saved=null,prepare=null}={}){
   let doc;let seq=0;let nextTimer=1;const timers=new Map();const listeners={};const savedStorage=new Map();if(saved)savedStorage.set('system-design-textbook-v1',saved);
   class TextNode {
     constructor(value){this.nodeType=3;this.value=value;this.parentElement=null;this.order=seq++;}
@@ -71,12 +71,13 @@ function createEnvironment({denied=false,hash='',mobile=false,saved=null}={}){
     focus(){doc.activeElement=this;}select(){}scrollIntoView(){this._scroll=true;this._top=110;}
     getBoundingClientRect(){return {top:this._top,left:0,right:800,bottom:this._top+400,width:800,height:400};}
     compareDocumentPosition(other){if(this===other)return 0;return other.order>this.order?4:2;}
-    showModal(){this.open=true;}close(){this.open=false;}
+    showModal(){this.open=true;}close(){if(!this.open)return;this.open=false;const id=nextTimer++;timers.set(id,{fn:()=>this.dispatch('close'),delay:0});}
   }
   function from(node){if(typeof node==='string')return new TextNode(node);const e=new Element(node.tag,node.attrs);e.append(...node.children.map(from));if(e.tagName==='SELECT'){const options=e.querySelectorAll('option');e.value=(options.find(o=>o.hasAttribute('selected'))||options[0])?.attrs.value||'';}return e;}
   doc=from(tree);doc.documentElement=doc.querySelector('html');doc.body=doc.querySelector('body');doc.activeElement=doc.body;doc.title='';const idIndex=new Map(doc.querySelectorAll('[id]').map(el=>[el.id,el]));doc.getElementById=id=>idIndex.get(id)||doc.querySelector('#'+id);doc.createElement=tag=>new Element(tag);doc.createTextNode=t=>new TextNode(t);doc.addEventListener=(type,fn)=>{(listeners['document:'+type]||=[]).push(fn);};
   doc.createTreeWalker=root=>{const nodes=root.querySelectorAll('*');let i=0;return{nextNode:()=>nodes[i++]||null};};
-  const loc={_hash:hash,get hash(){return this._hash;},set hash(v){this._hash=v.startsWith('#')?v:'#'+v;for(const fn of listeners.hashchange||[])fn();}};
+  prepare?.(doc);
+  const loc={_hash:hash,get hash(){return this._hash;},set hash(v){const next=v.startsWith('#')?v:'#'+v;if(next===this._hash)return;this._hash=next;for(const fn of listeners.hashchange||[])fn();}};
   const storage={getItem:k=>savedStorage.get(k)||null,setItem:(k,v)=>savedStorage.set(k,String(v))};
   const window={document:doc,location:loc,innerHeight:900,scrollY:0,matchMedia:q=>({matches:q.includes('max-width')?mobile:false,addEventListener(){},addListener(){}}),addEventListener:(type,fn)=>{(listeners[type]||=[]).push(fn);},scrollTo:opts=>{window.scrollY=opts.top;},print:()=>{for(const f of listeners.beforeprint||[])f();for(const f of listeners.afterprint||[])f();}};
   const context={document:doc,window,location:loc,history:{scrollRestoration:'auto'},NodeFilter:{SHOW_ELEMENT:1},Node:{DOCUMENT_POSITION_FOLLOWING:4},setTimeout:(fn,delay)=>{const id=nextTimer++;timers.set(id,{fn,delay});return id;},clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>fn(),console,Map,Set,JSON,Math,String,Number,Boolean,Object,Array};
@@ -94,12 +95,15 @@ e.loc.hash='chapter-01';assert.equal($('chapter-01').hidden,false);assert.equal(
 e.doc.querySelector('.skip-link').click();assert.equal(e.doc.activeElement,$('main-content'));assert.equal($('chapter-01').hidden,false);pass('Skip link focuses main without leaving the active chapter');
 $('bookmark-button').click();$('complete-button').click();assert.equal($('bookmark-button').getAttribute('aria-pressed'),'true');assert.equal($('course-progress-text').textContent,'1 / 16');
 const reloaded=createEnvironment({hash:'#chapter-01',saved:e.storage.get('system-design-textbook-v1')});assert.equal(reloaded.$('bookmark-button').getAttribute('aria-pressed'),'true');assert.equal(reloaded.$('complete-button').getAttribute('aria-pressed'),'true');pass('Bookmarks, completion, and resume survive a new app instance');
-$('show-bookmarks').click();assert.equal($('bookmark-dialog').open,true);assert.equal($('bookmark-list').querySelectorAll('a').length,1);$('bookmark-list').querySelector('a').click();assert.equal($('bookmark-dialog').open,false);pass('Bookmark dialog links to the saved chapter');
+$('show-bookmarks').click();assert.equal($('bookmark-dialog').open,true);assert.equal($('bookmark-list').querySelectorAll('a').length,1);
+const bookmarkLink=$('bookmark-list').querySelector('a');for(const modifier of ['ctrlKey','metaKey']){bookmarkLink.dispatch('click',{[modifier]:true,button:0});assert.equal($('bookmark-dialog').open,true);}
+bookmarkLink.click();e.runTimers(0);assert.equal($('bookmark-dialog').open,false);assert.ok(e.doc.activeElement===$('chapter-01'));pass('Bookmark links preserve modified clicks and focus their chapter after same-anchor navigation');
 e.key('/');assert.equal($('search-dialog').open,true);$('search-input').value='不變量';$('search-input').dispatch('input');assert.ok($('search-results').querySelectorAll('a').length>0);const result=$('search-results').querySelector('a');const href=result.href;result.click();assert.equal(e.loc.hash,href);assert.equal($('search-dialog').open,false);pass('Search finds full-text results and follows the result anchor');
 $('search-button').click();$('search-input').value='zzzz不存在987654321';$('search-input').dispatch('input');assert.equal($('search-results').querySelectorAll('a').length,0);assert.ok($('search-status').textContent.includes('沒有找到'));pass('No-result search gives an explicit empty state');
 $('search-input').value='<img src=x>';$('search-input').dispatch('input');assert.equal($('search-results').querySelectorAll('a').length,0);$('close-search').click();pass('Untrusted search text is treated as plain text');
 $('theme-select').value='dark';$('theme-select').dispatch('change',{target:$('theme-select')});assert.equal(e.doc.documentElement.dataset.theme,'dark');pass('Theme updates document and saved preference');
-e.event('beforeprint');assert.equal(e.doc.querySelectorAll('#chapters details:not([open])').length,0);e.event('afterprint');assert.ok(e.doc.querySelectorAll('#chapters details:not([open])').length>0);pass('Print expands all answers and restores prior disclosure states');
+const disclosures=e.doc.querySelectorAll('#chapters details');disclosures[0].open=true;const disclosureStates=disclosures.map(detail=>detail.open);
+e.event('beforeprint');e.event('beforeprint');assert.equal(e.doc.querySelectorAll('#chapters details:not([open])').length,0);e.event('afterprint');assert.deepEqual(disclosures.map(detail=>detail.open),disclosureStates);pass('Repeated beforeprint expands answers once and restores both open and closed disclosures');
 const deep=$('chapter-11').querySelector('h3');e.loc.hash=deep.id;assert.equal($('chapter-11').hidden,false);assert.ok(deep._scroll);e.loc.hash='missing-anchor';assert.equal($('course-home').hidden,false);pass('Direct subsection anchors and unknown-anchor fallback');
 const m=createEnvironment({mobile:true});m.$('menu-button').click();assert.equal(m.$('sidebar').getAttribute('aria-modal'),'true');assert.equal(m.$('main-content').inert,true);m.key('Escape');assert.equal(m.$('main-content').inert,false);assert.equal(m.$('sidebar').getAttribute('aria-modal'),null);pass('Mobile drawer locks background and releases on Escape');
 const d=createEnvironment({denied:true,hash:'#chapter-01'});d.$('bookmark-button').click();assert.equal(d.$('bookmark-button').getAttribute('aria-pressed'),'true');assert.ok(d.$('storage-note').textContent.includes('無法保存'));pass('Denied storage keeps in-memory operation and explains limitation');
@@ -132,4 +136,32 @@ for(const key of ['cache','queue','retry','replication','token-bucket','hashing'
 }
 const cache=$('lab-sd-cache');cache.querySelector('[data-sd-action="next"]').click();cache.querySelector('input[name="initial"]').value='';cache.querySelector('form').dispatch('submit');assert.equal(cache.querySelector('.sd-lab-error').hidden,false);assert.equal(cache.dataset.step,'1');cache.querySelector('input[name="initial"]').value='42';cache.querySelector('form').dispatch('submit');assert.equal(cache.querySelector('.sd-lab-error').hidden,true);assert.equal(cache.dataset.step,'0');pass('New lab invalid input keeps the valid trace; corrected input replaces and resets it');
 e.window.SystemDesignLabs.init(e.doc);assert.equal(cache.querySelector('[data-sd-action="next"]').events.click.length,1);pass('New lab init is idempotent and does not duplicate event listeners');
-const report={file:input,verification:'Lightweight simulated DOM and JavaScript state with all three real scripts. Not a browser, CSS layout, or accessibility audit.',checks,passed:checks.length};console.log(JSON.stringify(report,null,2));
+
+// Unique fixtures exercise search boundaries without freezing textbook wording.
+let answer,answerDetail,svgFrame;
+const r=createEnvironment({prepare(doc){
+ const metadata=JSON.parse(doc.getElementById('course-meta').textContent);metadata[0].keywords+=' chapter-keyword-needle';doc.getElementById('course-meta').textContent=JSON.stringify(metadata);
+ answerDetail=doc.getElementById('chapter-01').querySelector('details');answer=doc.createElement('p');answer.textContent='closed-answer-needle';answerDetail.append(answer);answerDetail.open=false;
+ const frames=doc.querySelector('.live-story').querySelectorAll('.story-frame');svgFrame=frames.at(-1);
+ const text=doc.createElement('text');text.tagName='text'; // SVG tagName retains lowercase in browsers.
+ text.textContent='svg-text-only-needle';svgFrame.querySelector('svg').append(text);
+}});
+function findResults(env,query){env.$('search-button').focus();env.$('search-button').click();env.$('search-input').value=query;env.$('search-input').dispatch('input');return env.$('search-results').querySelectorAll('a');}
+assert.deepEqual(findResults(r,'chapter-keyword-needle').map(link=>link.href),['#chapter-01']);r.$('close-search').click();r.runTimers(0);pass('Chapter metadata keywords do not produce unrelated subsection results');
+for(const modifier of ['ctrlKey','metaKey']){
+ r.loc.hash='course-home';const link=findResults(r,'closed-answer-needle')[0];assert.ok(link);link.dispatch('click',{[modifier]:true,button:0});
+ assert.equal(r.$('search-dialog').open,true);r.loc.hash=link.href;assert.equal(answerDetail.open,false);r.$('close-search').click();r.runTimers(0);
+}pass('Ctrl/Meta search clicks leave the dialog open and cannot leak a pending reveal into later navigation');
+const answerLink=findResults(r,'closed-answer-needle')[0];answerLink.click();r.runTimers(0);assert.equal(answerDetail.open,true);assert.ok(r.doc.activeElement===answer);pass('Search opens a matching closed answer and keeps focus on the revealed content, including same-anchor navigation');
+assert.equal(svgFrame.hidden,true);const svgLink=findResults(r,'svg-text-only-needle')[0];assert.ok(svgLink);svgLink.click();r.runTimers(0);assert.equal(svgFrame.hidden,false);assert.ok(svgFrame._scroll);assert.ok(r.doc.activeElement===svgFrame);pass('SVG-only text is searchable and reveals the matching hidden story frame');
+for(const lab of r.doc.querySelectorAll('[data-sd-lab]')){
+ const result=findResults(r,lab.querySelector('h3').textContent).find(link=>link.href==='#'+lab.id);assert.ok(result,lab.id);result.click();r.runTimers(0);
+ assert.deepEqual(r.doc.querySelectorAll('[data-sd-lab]:not([hidden])').map(panel=>panel.id),[lab.id]);assert.deepEqual(r.doc.querySelectorAll('.lab-index a[aria-current="true"]').map(link=>link.href),['#'+lab.id]);
+ assert.equal(r.$('course-home').hidden,false);assert.equal(r.$('reader').hidden,true);
+}pass('All six labs appear in search and navigation shows exactly the selected panel with aria-current');
+r.loc.hash='chapter-01';r.loc.hash='course-home';assert.equal(r.$('lab-sd-hashing').hidden,false);pass('Returning home preserves the selected lab');
+for(const [trigger,dialog,focused] of [['search-button','search-dialog','search-input'],['show-bookmarks','bookmark-dialog','close-bookmarks']]){
+ m.$('menu-button').click();m.$(trigger).click();assert.equal(m.$('sidebar').classList.contains('is-open'),false);assert.equal(m.$('sidebar').getAttribute('aria-modal'),null);assert.equal(m.$('main-content').inert,false);assert.equal(m.doc.querySelector('.topbar').inert,false);
+ assert.equal(m.$(dialog).open,true);assert.equal(m.doc.activeElement.id,focused);m.$(dialog).close();m.runTimers(0);assert.equal(m.doc.activeElement.id,'menu-button');
+}pass('Search and bookmark dialogs close the mobile drawer, release inert content, and restore menu focus on close');
+const report={file:input,verification:'Simulated DOM and JavaScript state with the three production scripts.',checks,passed:checks.length};console.log(JSON.stringify(report,null,2));

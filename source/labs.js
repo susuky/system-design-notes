@@ -48,7 +48,7 @@
   function cache(input) {
     const initial = integer(input.initial, '原值', -99, 999);
     const updated = integer(input.updated, '更新值', -99, 999);
-    const mode = choice(input.invalidation, '失效時機', ['delayed', 'immediate', 'none']);
+    const mode = choice(input.invalidation, '更新與回填順序', ['delayed', 'immediate', 'none', 'race']);
     const s = {db: {value: initial, version: 1}, cache: null, pendingRead: null, invalidation: false, reads: [], hits: 0, misses: 0, mode};
     const t = trace('cache', s, () => ({
       lanes: [lane('資料庫', [cell(versionText(s.db), 'active')]), lane('快取', s.cache ? [cell(versionText(s.cache), s.cache.version < s.db.version ? 'warning' : 'active')] : []), lane('傳遞中', [...(s.pendingRead ? [cell('讀取 ' + versionText(s.pendingRead))] : []), ...(s.invalidation ? [cell('刪除快取訊息', 'warning')] : [])]), lane('已回覆', s.reads.map(r => cell(`${r.id}: ${r.value} · v${r.version}${r.stale ? '（舊版）' : ''}`, r.stale ? 'warning' : '')))],
@@ -65,30 +65,41 @@
         s.pendingRead = clone(s.db);
         t.push('讀資料庫', `${id} 從資料庫取得 ${versionText(s.pendingRead)}，先放在這次讀取的暫存區。`);
         s.cache = clone(s.pendingRead); s.pendingRead = null; value = clone(s.cache);
-        t.push('回填快取', `把 ${versionText(s.cache)} 寫入快取。這個模型依序執行請求，回填期間沒有另一個寫入插進來。`);
+        t.push('回填快取', `把剛讀到的 ${versionText(s.cache)} 寫入快取。`);
       }
       s.reads.push({id, ...value, dbVersion: s.db.version, stale: value.version < s.db.version});
       t.push('回覆讀取', `${id} 回覆 ${value.value}（v${value.version}）。${value.version < s.db.version ? `資料庫已是 v${s.db.version}；快取命中仍可能回傳舊版本。` : '此刻與資料庫版本相同。'}`);
     }
     t.push('初始化', `資料庫存放 ${initial}（v1），快取為空。先讀一次，再更新資料庫，觀察後續兩次讀取。`);
     read('R1');
+    if (mode === 'race') {
+      s.cache = null; s.misses++;
+      t.push('R2 快取未命中', '清除 R1 留下的快取，讓 R2 回源讀取。');
+      s.pendingRead = clone(s.db);
+      t.push('R2 取得舊版', `R2 已讀到 ${versionText(s.pendingRead)}，暫停在回填之前，讓 W 先更新資料庫。`);
+    }
     s.db = {value: updated, version: 2};
-    t.push('提交寫入', `W 把資料庫改成 ${updated}（v2）。快取仍保留 v1，寫入資料庫不會自動改掉快取。`);
-    if (mode === 'immediate') {
+    t.push('提交寫入', `W 把資料庫改成 ${updated}（v2）。${mode === 'race' ? 'R2 手上仍是寫入前取得的 v1。' : '快取仍保留 v1，接著處理快取失效。'}`);
+    if (mode === 'immediate' || mode === 'race') {
       s.cache = null;
-      t.push('刪除快取', '寫入流程在下一次讀取前刪除快取。這裡固定操作順序，不代表兩個系統之間有原子交易。');
+      t.push('刪除快取', mode === 'race' ? 'W 已提交 v2 並刪除快取。R2 的舊讀取結果仍在回填途中。' : 'W 提交後刪除快取，再讓 R2 開始讀取。');
     } else if (mode === 'delayed') {
       s.invalidation = true;
       t.push('失效訊息在途', '已送出刪除快取訊息，但還沒送達。讓 R2 在這段空窗中讀取。');
     } else t.push('略過失效', '這次刻意不刪除快取，也沒有 TTL。後續命中會繼續使用 v1。');
-    read('R2');
+    if (mode === 'race') {
+      s.cache = clone(s.pendingRead); s.pendingRead = null;
+      t.push('舊值回填', 'R2 恢復執行，把先前讀到的 v1 寫回已清空的快取。刪除已完成，舊值卻再次出現。');
+      s.reads.push({id: 'R2', ...s.cache, dbVersion: s.db.version, stale: true});
+      t.push('回覆 R2', `R2 回覆 ${initial}（v1）。接下來讓 W 完成後才開始的 R3 查詢快取。`);
+    } else read('R2');
     if (s.invalidation) {
       s.cache = null; s.invalidation = false;
       t.push('失效訊息送達', '刪除快取訊息現在送達，v1 被移除。R2 已經回覆的舊值不會因此被撤回。');
     }
     read('R3');
     const stale = s.reads.filter(r => r.stale).length;
-    t.push('停止', `三次讀取都已回覆，共 ${stale} 次讀到當時資料庫的舊版本。${mode === 'none' ? '觀測結束時快取仍舊；沒有 TTL 或失效機制，不會自行追上。' : '觀測結束時快取與資料庫皆為 v2。'}`, true, {reads: s.reads, stale, version: s.cache.version});
+    t.push('停止', `三次讀取都已回覆，共 ${stale} 次回覆時落後資料庫版本。${mode === 'race' ? 'R3 在 W 完成後才開始，仍命中 R2 回填的 v1。用版本柵欄拒絕舊回填，或以 TTL 限制殘留時間。' : mode === 'none' ? '快取維持 v1，直到失效或被替換。' : '快取與資料庫皆為 v2。'}`, true, {reads: s.reads, stale, version: s.cache.version});
     return t.frames;
   }
 
@@ -295,14 +306,6 @@
     return t.frames;
   }
 
-  const config = [
-    {key: 'cache', title: '快取命中了，怎麼還是舊值？', subtitle: 'Cache-aside 與失效空窗', chapter: '05', defaults: {initial: '10', updated: '20', invalidation: 'delayed'}, fields: [{name: 'initial', label: '資料庫原值', min: -99, max: 999}, {name: 'updated', label: '寫入後的新值', min: -99, max: 999}, {name: 'invalidation', label: '失效時機', options: [['delayed', 'R2 讀完才刪除'], ['immediate', 'R2 讀取前刪除'], ['none', '完全不刪除']]}], assumption: '單一 key、單一快取、請求依序執行；資料庫讀寫已提交，沒有 TTL、故障或讀寫競爭。版本比對是教學觀察，實際 cache-aside 不一定會查版本。', principle: '快取可以落後於資料庫。更新資料庫與刪除快取之間的空窗，會影響下一次讀取；命中率高不代表資料新。', stop: 'R1、寫入 W、R2、R3 依序完成就停止。沒有失效時，停止觀測不表示資料已一致。', challenge: '改成「完全不刪除」，再把原值和新值設成相同數字。回覆數字一樣，能證明版本一樣嗎？'},
-    {key: 'queue', title: '佇列滿了，工作留在哪裡？', subtitle: '有界佇列、背壓與拒絕', chapter: '06', defaults: {arrivals: '4, 3, 0, 2', capacity: '3', service: '1', policy: 'pause'}, fields: [{name: 'arrivals', label: '每拍新工作數（1–8 拍，各 0–6）'}, {name: 'capacity', label: '佇列容量', min: 1, max: 6}, {name: 'service', label: '每拍處理量', min: 0, max: 4}, {name: 'policy', label: '佇列滿載時', options: [['pause', '來源暫停送入'], ['reject', '明確拒絕新工作']]}], assumption: '單一 FIFO 佇列；每拍先接收，再處理。每份工作成本相同，沒有 worker 失敗。來源待送代表尚未送入的需求；此模型沒有保證來源儲存空間也有限。', principle: '佇列不能超過容量；提出的工作必須能在來源待送、佇列、已完成或已拒絕中找到。背壓會把等待往上游傳，無法憑空消除需求。', stop: '輸入停止後，有處理能力就繼續排空；處理量為 0 時，明確以「仍有積壓」結束觀測。', challenge: '把處理量設成 0，比較暫停與拒絕。哪一種還保留工作？哪個位置會持續累積？'},
-    {key: 'retry', title: 'ACK 不見了，能直接再做一次嗎？', subtitle: '至少一次投遞與冪等效果', chapter: '09', defaults: {amount: '5', lostAcks: '1', dedupe: 'on'}, fields: [{name: 'amount', label: '每筆增加量', min: 1, max: 100}, {name: 'lostAcks', label: 'M1 遺失 ACK 次數', min: 0, max: 3}, {name: 'dedupe', label: '冪等處理', options: [['on', '同一交易保存去重紀錄'], ['off', '不保存去重紀錄']]}], assumption: '只有 ACK 會遺失；重送沿用相同 ID，訊息內容不變。啟用去重時，業務效果與去重紀錄在同一資料庫交易提交，紀錄全程保留。未模擬外部付款、寄信或跨系統交易。', principle: '傳送端逾時不代表消費者沒執行。相同操作 ID 應重用原結果；M2 即使內容和 M1 一樣，仍是另一個合法操作。', stop: 'M1 最終收到 ACK，再完成 M2 即停止。只能說本模型的業務效果沒有重複，不能推成端到端 exactly-once 保證。', challenge: '關閉去重，把 ACK 遺失次數改成 3。投遞次數、提交次數與原本預期的兩筆操作各是多少？'},
-    {key: 'replication', title: '寫入成功，副本為什麼還看不到？', subtitle: '非同步複寫與 read-your-writes', chapter: '02', defaults: {writes: '10, 20', lag: '2', readMode: 'replica'}, fields: [{name: 'writes', label: '依序寫入的值（1–4 筆，−99–999）'}, {name: 'lag', label: '複寫延遲（拍）', min: 0, max: 3}, {name: 'readMode', label: '讀取策略', options: [['replica', '直接讀副本'], ['leader', '固定讀主節點'], ['session', '帶 token，落後就改讀主節點']]}], assumption: '單一寫入者、同一個 key、單一主節點與副本；日誌依序送達，沒有故障或主節點切換。每次寫入與讀取各推進一拍，時間到就套用日誌。', principle: '副本套用的是主節點日誌的前綴。工作階段 token 記錄自己已確認的版本；副本未追上時，讀取策略要決定等待、改讀或失敗。', stop: '所有寫入完成，待複寫日誌排空，再讀一次即停止。這組排程的結果不能證明多寫入者下的線性一致性。', challenge: '先用延遲 3 拍讀副本，再改成帶 token。回覆由哪個節點提供？付出了什麼負載或延遲上的代價？'},
-    {key: 'token-bucket', title: '同樣一批流量，哪些請求能通過？', subtitle: 'Token bucket 的突發額度', chapter: '12', defaults: {arrivals: '6, 2, 4, 0, 3', capacity: '4', rate: '2', cost: '1'}, fields: [{name: 'arrivals', label: '每拍請求數（1–8 拍，各 0–6）'}, {name: 'capacity', label: '桶容量', min: 1, max: 8}, {name: 'rate', label: '每拍補充量', min: 0, max: 4}, {name: 'cost', label: '每次請求成本', min: 1, max: 8}], assumption: '桶一開始是滿的，t=0 不再補充；後續每拍先補入整數權杖，再依序處理請求。只有單一原子計數器；拒絕後不排隊、不重試，未模擬多節點時鐘。', principle: '餘額不可為負，也不能超過桶容量。已放行的總成本受初始突發額度加上時間補充量限制；權杖不足就明確拒絕。', stop: '輸入各拍的請求全部判定後停止；即使桶仍有餘額，也不憑空產生新請求。', challenge: '把單次成本設得比桶容量大，再加入幾拍 0 請求。等得更久能讓它通過嗎？'},
-    {key: 'hashing', title: '加一台機器，哪些 key 必須改路由？', subtitle: '一致性雜湊的區間變化', chapter: '11', defaults: {nodes: '15, 45, 80', added: '60', keys: '5, 18, 32, 50, 72, 91'}, fields: [{name: 'nodes', label: '既有節點位置（2–5 個，不重複）'}, {name: 'added', label: '新增節點 N 的位置', min: 0, max: 99}, {name: 'keys', label: 'key 的雜湊位置（1–10 個，各 0–99）'}], assumption: '位置直接輸入在 0–99 的環上，每台機器只有一個位置。key 歸順時針第一個節點，包含相等位置；沒有虛擬節點、副本或實際資料搬移。', principle: '加入 N 後，只有落在其前一節點到 N 之間的 key 改向 N。其他 key 的原負責節點不變；負載是否平均要另外觀察。', stop: '每個 key 的舊路由與新路由都算完即停止。這是搬移計畫，不代表資料已複製或線上切換已安全完成。', challenge: '把 N 改放到 0，並加入位置 99、0、1 的 key。跨過環的起點時，開區間與閉區間各包含誰？'}
-  ];
   const algorithms = {cache, queue, retry, replication, 'token-bucket': tokenBucket, hashing};
 
   function ringHTML(ring) {
@@ -372,5 +375,5 @@
     return controller;
   }
   function init(document) {return Array.from(document.querySelectorAll('[data-sd-lab]')).map(mount);}
-  return {algorithms, config, integer, numbers, owner, escape, visualHTML, init, mount, render};
+  return {algorithms, integer, numbers, owner, escape, visualHTML, init, mount, render};
 });

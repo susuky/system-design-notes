@@ -14,7 +14,7 @@
   for (const region of document.querySelectorAll('.scene-scroll, figure.visual-explainer')) {
     region.setAttribute('tabindex', '0');
     region.setAttribute('role', 'region');
-    region.setAttribute('aria-label', '可橫向捲動的圖解');
+    region.setAttribute('aria-label', region.querySelector('title')?.textContent.trim() || '圖解');
   }
   const controllers = new Map();
   for (const panel of document.querySelectorAll('.live-story')) {

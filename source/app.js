@@ -5,7 +5,9 @@
   const validChapters = new Set(meta.map(ch => ch.id));
   const storageKey = 'system-design-textbook-v1';
   const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
-  let current = null, toastTimer, saveTimer, storageAvailable = true;
+  let current = null, saveTimer, storageAvailable = true, pendingSearchTarget = null;
+  let activeLab = 'lab-sd-cache', printing = false;
+  const dialogFocus = new Map();
   let state = {theme: 'system', bookmarks: [], completed: [], progress: {}, last: null};
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
@@ -29,12 +31,7 @@
   function save() {
     try { localStorage.setItem(storageKey, JSON.stringify(state)); storageAvailable = true; }
     catch (_) { storageAvailable = false; }
-    if (!storageAvailable) $('storage-note').textContent = '瀏覽器無法保存資料；目前操作仍有效，但關閉後可能遺失。';
-  }
-  function toast(text) {
-    clearTimeout(toastTimer);
-    $('toast').textContent = text; $('toast').hidden = false;
-    toastTimer = setTimeout(() => { $('toast').hidden = true; }, 3000);
+    $('storage-note').textContent = storageAvailable ? '進度與書籤儲存在此瀏覽器。' : '瀏覽器無法保存資料，關閉後會遺失本次進度。';
   }
   function setTheme() {
     document.documentElement.dataset.theme = state.theme === 'system' ? (systemDark.matches ? 'dark' : 'light') : state.theme;
@@ -73,7 +70,6 @@
     const index = state[key].indexOf(current.id);
     if (index === -1) state[key].push(current.id); else state[key].splice(index, 1);
     save(); refreshProgress();
-    toast(key === 'bookmarks' ? (index === -1 ? '已收藏本章' : '已移除本章書籤') : (index === -1 ? '本章已標記完成' : '已取消完成標記'));
   }
   function setDrawer(open, restoreFocus = true) {
     $('sidebar').classList.toggle('is-open', open);
@@ -99,6 +95,7 @@
     clearTimeout(saveTimer); saveTimer = setTimeout(save, 250);
   }
   function trackReading() {
+    if (printing) return;
     updateReadingProgress();
     if (!current) return;
     let anchor = current.id;
@@ -111,9 +108,18 @@
     const hash = safeHash();
     let target = $(hash || 'course-home');
     if (!target || target.closest('dialog')) target = $('course-home');
+    if (pendingSearchTarget?.id === hash) target = pendingSearchTarget.node;
+    pendingSearchTarget = null;
     const article = target.closest('article');
     current = article ? meta.find(ch => ch.id === article.id) || null : null;
     if (article && !current && !target.closest('#course-home')) target = $('course-home');
+    const lab = target.closest('[data-sd-lab]');
+    if (lab) activeLab = lab.id;
+    document.querySelectorAll('[data-sd-lab]').forEach(panel => { panel.hidden = panel.id !== activeLab; });
+    document.querySelectorAll('.lab-index a').forEach(link => {
+      if (link.getAttribute('href') === '#' + activeLab) link.setAttribute('aria-current', 'true');
+      else link.removeAttribute('aria-current');
+    });
     $('course-home').hidden = !!current;
     $('reader').hidden = !current;
     meta.forEach(ch => {$(ch.id).hidden = current ? ch.id !== current.id : true;});
@@ -134,14 +140,14 @@
       for (const [id, next] of [['prev-chapter', meta[position - 1]], ['next-chapter', meta[position + 1]]]) {
         const link = $(id);
         link.href = '#' + (next?.id || 'course-home');
-        link.querySelector('strong').textContent = next ? `${next.number} ${next.short}` : '學習路線圖';
+        link.querySelector('strong').textContent = next ? `${next.number} ${next.short}` : '首頁';
         link.querySelector('span').textContent = next ? (id === 'prev-chapter' ? '上一章' : '下一章') : '回到首頁';
       }
-      state.last = {chapter: current.id, anchor: target.id}; save();
-    } else document.title = '系統設計：讓架構回應需求';
+      state.last = {chapter: current.id, anchor: hash || current.id}; save();
+    } else document.title = '系統設計';
     refreshProgress();
     if ($('sidebar').classList.contains('is-open')) setDrawer(false, false);
-    if (target.id === 'course-home') window.scrollTo({top: 0, behavior: 'instant'});
+    if (target.id === 'course-home') { window.scrollTo({top: 0, behavior: 'instant'}); target.focus({preventScroll: true}); }
     else {
       // Reveal an anchored answer if a deep link points inside a closed details element.
       let ancestor = target.parentElement;
@@ -161,17 +167,23 @@
     const walker = document.createTreeWalker(article, NodeFilter.SHOW_ELEMENT);
     let node, section = {id: chapter.id, chapter: chapter.short, title: chapter.title, text: '', keywords: chapter.keywords, nodes: []};
     while ((node = walker.nextNode())) {
-      if (node.tagName === 'H3' && node.id) { searchIndex.push(section); section = {id: node.id, chapter: chapter.short, title: node.textContent.trim(), text: '', keywords: chapter.keywords, nodes: []}; }
-      if (['P', 'LI', 'PRE', 'FIGCAPTION', 'TD', 'TH', 'SUMMARY', 'H2', 'H4'].includes(node.tagName)) { section.text += ' ' + node.textContent.trim(); section.nodes.push(node); }
+      const tag = node.tagName.toUpperCase();
+      if (tag === 'H3' && node.id) { searchIndex.push(section); section = {id: node.id, chapter: chapter.short, title: node.textContent.trim(), text: '', keywords: '', nodes: []}; }
+      if (['P', 'LI', 'PRE', 'FIGCAPTION', 'TD', 'TH', 'SUMMARY', 'H2', 'H4', 'TEXT'].includes(tag)) { section.text += ' ' + node.textContent.trim(); section.nodes.push(node); }
     }
     searchIndex.push(section);
   }
+  for (const lab of document.querySelectorAll('[data-sd-lab]')) {
+    const nodes = [...lab.querySelectorAll('p, li')];
+    searchIndex.push({id: lab.id, chapter: '互動實驗', title: lab.querySelector('h3').textContent, text: nodes.map(node => node.textContent).join(' '), keywords: '', nodes});
+  }
+  for (const section of searchIndex) section.searchable = (section.title + ' ' + section.text + ' ' + section.keywords).toLocaleLowerCase();
   function search() {
     const query = $('search-input').value.trim().toLocaleLowerCase();
     $('search-results').replaceChildren();
-    if (!query) { $('search-status').textContent = '輸入關鍵字，從全書找出相關小節。'; return; }
+    if (!query) { $('search-status').textContent = ''; return; }
     const terms = query.split(/\s+/).filter(Boolean);
-    const results = searchIndex.filter(s => terms.every(term => (s.title + ' ' + s.text + ' ' + s.keywords).toLocaleLowerCase().includes(term))).map(s => ({...s, score: terms.reduce((n, t) => n + (s.title.toLocaleLowerCase().includes(t) ? 10 : 0), 0)})).sort((a, b) => b.score - a.score);
+    const results = searchIndex.filter(s => terms.every(term => s.searchable.includes(term))).map(s => ({...s, score: terms.reduce((n, t) => n + (s.title.toLocaleLowerCase().includes(t) ? 10 : 0), 0)})).sort((a, b) => b.score - a.score);
     $('search-status').textContent = results.length ? `找到 ${results.length} 個小節${results.length > 40 ? '，顯示前 40 個' : ''}。` : '沒有找到相符內容。試試較短的中文關鍵字或英文名詞。';
     for (const result of results.slice(0, 40)) {
       const li = document.createElement('li'), a = document.createElement('a'), small = document.createElement('small'), strong = document.createElement('strong'), p = document.createElement('p');
@@ -180,14 +192,20 @@
       const text = result.text.replace(/\s+/g, ' ').trim(), found = Math.max(0, text.toLocaleLowerCase().indexOf(terms[0])), start = Math.max(0, found - 35);
       p.textContent = (start ? '…' : '') + text.slice(start, start + 160) + (text.length > start + 160 ? '…' : '');
       a.append(small, strong, p); li.append(a); $('search-results').append(li);
-      a.addEventListener('click', () => {
-        for (const node of result.nodes) if (terms.every(term => node.textContent.toLocaleLowerCase().includes(term))) { let ancestor = node.closest('details'); while (ancestor) { ancestor.open = true; ancestor = ancestor.parentElement?.closest('details'); } }
+      a.addEventListener('click', event => {
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button > 0) return;
+        const match = result.nodes.find(node => terms.every(term => node.textContent.toLocaleLowerCase().includes(term)));
+        pendingSearchTarget = match ? {id: result.id, node: match.closest('figure') || match} : null;
+        dialogFocus.delete($('search-dialog'));
         $('search-dialog').close(); if (safeHash() === result.id) route();
       });
     }
   }
   function openDialog(dialog, focusTarget) {
     if (dialog.open) return;
+    const drawerOpen = $('sidebar').classList.contains('is-open');
+    dialogFocus.set(dialog, drawerOpen ? $('menu-button') : document.activeElement);
+    if (drawerOpen) setDrawer(false, false);
     if (typeof dialog.showModal === 'function') dialog.showModal(); else dialog.setAttribute('open', '');
     focusTarget?.focus();
   }
@@ -198,17 +216,23 @@
     for (const ch of saved) {
       const li = document.createElement('li'), a = document.createElement('a');
       a.className = 'bookmark-result'; a.href = '#' + ch.id; a.textContent = `${ch.number}　${ch.short}`;
-      a.addEventListener('click', () => { $('bookmark-dialog').close(); if (safeHash() === ch.id) route(); });
+      a.addEventListener('click', event => {
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button > 0) return;
+        dialogFocus.delete($('bookmark-dialog'));
+        $('bookmark-dialog').close(); if (safeHash() === ch.id) route();
+      });
       li.append(a); $('bookmark-list').append(li);
     }
     openDialog($('bookmark-dialog'), $('close-bookmarks'));
   }
   const printDetails = [];
   function beforePrint() {
+    if (printing) return;
+    printing = true;
     printDetails.length = 0;
     document.querySelectorAll('#chapters details').forEach(detail => { if (!detail.open) { printDetails.push(detail); detail.open = true; } });
   }
-  function afterPrint() { printDetails.splice(0).forEach(detail => { detail.open = false; }); }
+  function afterPrint() { printDetails.splice(0).forEach(detail => { detail.open = false; }); printing = false; }
   document.querySelector('.skip-link').addEventListener('click', event => { event.preventDefault(); $('main-content').focus({preventScroll: true}); });
   $('search-button').addEventListener('click', () => openDialog($('search-dialog'), $('search-input')));
   $('close-search').addEventListener('click', () => $('search-dialog').close());
@@ -224,10 +248,13 @@
   $('sidebar').addEventListener('click', event => { const link = event.target.closest('a[href^="#"]'); if (link && $('sidebar').classList.contains('is-open')) { setDrawer(false, false); if (link.hash === location.hash) route(); } });
   $('drawer-backdrop').addEventListener('click', () => setDrawer(false));
   for (const id of ['print-button', 'sidebar-print']) $(id).addEventListener('click', () => window.print());
-  for (const dialog of [$('search-dialog'), $('bookmark-dialog')]) dialog.addEventListener('click', event => {if (event.target === dialog) {const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();}});
+  for (const dialog of [$('search-dialog'), $('bookmark-dialog')]) {
+    dialog.addEventListener('click', event => {if (event.target === dialog) {const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();}});
+    dialog.addEventListener('close', () => { dialogFocus.get(dialog)?.focus({preventScroll: true}); dialogFocus.delete(dialog); });
+  }
   document.addEventListener('keydown', event => {
-    const editing = event.target.matches('input, textarea, select, [contenteditable="true"]');
-    if (event.key === '/' && !editing && !$('bookmark-dialog').open) { event.preventDefault(); openDialog($('search-dialog'), $('search-input')); }
+    const editing = event.target.matches('input, textarea, select') || event.target.isContentEditable;
+    if (event.key === '/' && !editing && !event.ctrlKey && !event.metaKey && !event.altKey && !$('bookmark-dialog').open) { event.preventDefault(); openDialog($('search-dialog'), $('search-input')); }
     if (event.key === 'Escape' && $('sidebar').classList.contains('is-open')) setDrawer(false);
     if (event.key === 'Tab' && $('sidebar').classList.contains('is-open')) {
       const focusable = [...$('sidebar').querySelectorAll('a, button')].filter(el => el.offsetParent !== null);
