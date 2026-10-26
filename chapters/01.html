@@ -1,12 +1,12 @@
 <article id="chapter-01" class="chapter">
   <p class="eyebrow">第 01 章 · Introduction</p>
   <h2>導論：從需求推導架構</h2>
-  <p class="chapter-lead"><mark>系統設計是一連串可被檢驗的決定</mark>：誰需要什麼結果、負載如何變動、哪些錯誤不能接受，以及團隊願意付出多少成本。</p>
+  <p class="chapter-lead"><mark>系統設計不是在比誰背的元件多，而是一連串可以被檢驗的取捨與決定</mark>：你要為誰解決問題、承載怎樣的流量波動、哪些錯誤絕對無法容忍，以及團隊願意為了這些保證付出多少資源與維運成本。</p>
 
   <h3 id="ch01-course-introduction">1.1 課程介紹（Course introduction）</h3>
-  <p>想像你要開發一個多租戶文件處理與通知平台。公司客戶上傳文件，系統將它轉成可預覽的格式，擷取文字，讓使用者查詢進度，最後以電子郵件或 webhook 通知完成。第一個版本可能只需要一個應用程式、一個資料庫、一個檔案儲存空間。這已是一個完整系統；是否需要訊息佇列、快取、分片或多區域部署，必須由後續證據決定。</p>
-  <p>演算法設計常把輸入、輸出與機器模型先固定。系統設計則要先建立這些邊界：上傳者能等待多久？同一個文件會不會被重送？處理成功但通知失敗算完成嗎？某個租戶一次送入十萬份文件，是否能拖慢其他租戶？這些問題會決定 API、資料模型與故障策略。若省略它們，即使圖上畫滿知名產品，也無法判定架構是否正確。</p>
-  <p>本書以「<mark>主張、理由、代價、驗證</mark>」四件事檢查每個設計。例如主張是「把轉檔移到背景工作」，理由是讓短 API 請求不必等待長工作，代價是使用者要接受非同步狀態與延後完成，驗證方式則是測量 API 接收延遲、佇列等待時間、端到端完成時間，以及故障後的重試結果。僅說「用 queue 提升效能」還不夠，因為<mark class="mark-blue">佇列本身不會增加處理能力</mark>，還可能把過載隱藏成越來越長的等待。</p>
+  <p>想像你正在接手一個多租戶（multi-tenant）的文件處理與通知平台。公司的企業客戶會上傳各類文件，系統必須把原件轉成可預覽的格式、擷取內文關鍵字，讓用戶隨時查詢進度，最後在處理完成時以 Email 或 Webhook 發送通知。最單純的第一版可能很直覺：一台應用程式伺服器、一個資料庫，再加上一個檔案儲存空間。只要能把功能跑通，它就是一個完整且能創造價值的系統；至於什麼時候該引入訊息佇列、快取快取層、資料分片或跨區域部署，絕不是憑感覺提早套用，而是要看實際遇到了什麼瓶頸與數據證據。</p>
+  <p>在一般寫演算法題時，輸入規模、輸出格式和單機環境往往是預先給定的。但在分散式系統設計裡，最關鍵的第一步反而是釐清邊界：上傳者最多能容忍等幾秒？同一個文件會不會因為網路抖動被重複上傳？轉檔成功但通知失敗，對用戶來說算不算完成？如果某個大客戶突然在尖峰時段灌入十萬份文件，會不會把共用資源吃光，連帶拖垮其他租戶？這些問題會直接決定 API 契約、資料模型與容錯策略。要是略過這些前提，就算架構圖上畫滿了最時髦的分散式元件，也沒人能斷定這套設計到底合不合理。</p>
+  <p>本書會貫徹一套實戰思考法，用四個問題檢驗每個設計決策：<mark>主張、理由、代價、驗證</mark>。舉例來說，如果主張是「把轉檔移到背景非同步工作」，理由是「避免耗時的轉檔卡住 API 請求」，那麼代價就是「使用者必須接受狀態延後完成，前端也需要能查詢進度」；而驗證方式則是「實測 API 接收延遲、佇列排隊時間、端到端完成率，以及 worker 崩潰後的重試復原」。光說一句「用 Queue 來提升效能」是遠遠不夠的，因為<mark class="mark-blue">佇列本身並不會憑空變出運算能力</mark>，如果後端處理速度跟不上，它只會把系統過載包裝成越來越漫長、甚至無上限的排隊等待。</p>
   <figure class="diagram">
     <svg viewBox="0 0 860 210" role="img" aria-labelledby="ch01-flow-title ch01-flow-desc" xmlns="http://www.w3.org/2000/svg">
       <title id="ch01-flow-title">文件平台的兩條使用者旅程</title>
@@ -28,53 +28,53 @@
     </svg>
     <figcaption>圖 1-1。任務 ID 串起接收回覆與背景結果；通知失敗由投遞流程重試。</figcaption>
   </figure>
-  <p>為了讓算例能重算，先設定一組教學假設：一萬個租戶，每日一百萬份文件，平均原件為 5 MB，尖峰到達率是全天平均的十倍，每份轉換平均耗用 2 CPU-seconds。這組工作負載作為後續容量推導的共同基準。除另行說明，MB、GB、TB 使用十進位，MiB、GiB 使用二進位。後續章節若改變假設，會在題目內明列。</p>
+  <p>為了讓後續章節的容量估算有一致的基準，我們先設定一組貼近實務的教學假設：平台服務一萬個企業租戶，全天處理一百萬份文件；每份原件平均大小為 5 MB，尖峰時段的抵達速率約為全天平均的十倍，而每份轉檔平均需耗用 2 個 CPU-seconds。後續所有關於頻寬、儲存量與運算資源的計算，都會圍繞著這組負載展開。除特別註明外，本書提到的 MB、GB、TB 均採十進位計算，MiB、GiB 則採二進位標準。若特定章節有調整假設，會在題目中明確標出。</p>
   <pre><code class="language-formula">每日秒數 = 24 × 60 × 60 = 86,400
 平均到達率 = 1,000,000 ÷ 86,400 ≈ 11.57 份／秒
 尖峰到達率 ≈ 115.74 份／秒
 每日原件大小 = 1,000,000 × 5 MB = 5 TB</code></pre>
-  <p class="pitfall"><strong>容量估算：</strong>11.57 份／秒描述全天平均。規劃容量時還要量測五分鐘尖峰、最大文件大小、重試比例，以及單一大租戶的集中流量。</p>
-  <p class="exercise"><strong>練習：</strong>文件平台的銷售說「我們要做到即時處理」。請寫出兩個必須追問的問題，並提出一個可測量的替代需求。</p>
-  <details><summary>參考解答與推理</summary><p>先問「即時是指收到接收回覆，還是拿到轉換結果？」以及「適用哪些格式與大小、在多大的流量下？」替代需求可以是：「在每秒 100 份、單份不超過 10 MB 的已驗證 PDF 工作負載下，99% 的接收請求於 300 ms 內完成；95% 的成功接收任務於 60 秒內完成轉換。」接收與完成分開衡量，避免用很快的 202 回覆掩蓋背景積壓；具體數值仍需產品同意與壓力測試。</p></details>
+  <p class="pitfall"><strong>容量估算心法：</strong>平均每秒 11.57 份只是全天的平攤值。在實際系統規劃中，千萬不能拿平均值當作容量標準，必須針對五分鐘尖峰突發、大檔案極端值、重試雪崩，以及大客戶集中灌入流量等極端情境預留彈性。</p>
+  <p class="exercise"><strong>實戰思考：</strong>如果業務或產品經理提出「我們的系統必須做到即時處理」，身為工程師，你必須追問哪兩個關鍵問題？又該如何把這句話轉換成工程上能驗證的具體指標？</p>
+  <details><summary>參考解答與推理</summary><p>首先要追問：「這裡說的『即時』，是指客戶收到『系統已收件』的確認回應，還是指『拿到轉檔結果』？」接著再問：「這個目標適用於哪些檔案格式、多大的容量上限，又是在多大的併發流量下成立？」一個可測量的替代需求可以這樣寫：「在每秒 100 份、單檔不大於 10 MB 的合法 PDF 負載下，99% 的上傳接收請求需在 300 ms 內回覆完成；且 95% 成功接收的任務需在 60 秒內轉檔完畢。」把接收與處理拆開來量測，才不會讓一個看似很快的 202 回應掩蓋了背後嚴重的佇列積壓。</p></details>
 
   <h3 id="ch01-who-will-benefit">1.2 適合誰學習（Who will benefit from the course and how）</h3>
-  <p>如果你能寫一個能運作的服務，卻不知道如何回答「流量變十倍怎麼辦」或「資料庫壞掉時使用者看見什麼」，本教材就適合你。它也適合準備系統設計面試的工程師、需要跨團隊討論取捨的技術主管，以及要理解成本與可靠度承諾的產品協作者。不同角色不必記住相同細節，但都應能把架構決定連回使用者價值。</p>
-  <p>最低先備知識是函式、常見資料結構、基本 HTTP 請求，以及讀寫資料庫的概念。你不必先精通 Kubernetes 或某個雲端平台。遇到陌生術語時，<mark>先問它解決哪種約束</mark>：負載平衡處理請求如何分配；複寫處理資料如何有多個副本；分片處理資料如何分散；快取處理重複計算或讀取如何減少。相似的產品名稱不代表相同的語意與失敗模式。</p>
+  <p>如果你已經能獨立寫出跑得動的 Web 服務，但在面對「如果流量成長十倍要怎麼擴充」或「資料庫突然掛掉時使用者會看到什麼」這類問題時感到猶豫，這本教材就是為你設計的。無論是正在準備系統設計面試的工程師、需要跨團隊評估架構取捨的 Tech Lead，或是想搞懂 SLA 承諾與雲端帳單關聯的產品負責人，都能從中獲益。不同崗位或許不需要鑽研完全相同的實作細節，但都必須具備將架構決策與終端用戶價值連結起來的能力。</p>
+  <p>閱讀本書所需的先備知識並不嚴苛：只要懂得基本函式、常用資料結構、HTTP 請求原理，以及對關聯式資料庫有讀寫操作的經驗即可。你完全不需要先成為 Kubernetes 大師或雲端認證專家。在面對各種陌生名詞時，<mark>最實用的習慣是先問它到底在解決哪種物理約束</mark>：負載平衡是為了解決單點吞吐限制；複寫是為了解決單機故障時的資料可用性；分片是為了解決單一儲存節點的容量瓶頸；快取則是為了減少昂貴的重複計算與磁碟讀取。很多產品名稱看起來相近，背後的語意保證與失效模式卻大相逕庭。</p>
   <table>
-    <thead><tr><th>讀者情境</th><th>應練習的行為</th><th>完成後能展示的成果</th></tr></thead>
+    <thead><tr><th>讀者情境</th><th>建議練習方式</th><th>學習後能展現的成果</th></tr></thead>
     <tbody>
-      <tr><td>初次學習後端設計</td><td>先畫一條完整請求路徑，再找出持久狀態</td><td>說清楚接收、完成、失敗、重試四種情況</td></tr>
-      <tr><td>準備面試</td><td>用假設縮小題目，挑一個瓶頸深入</td><td>在有限時間內比較兩種方案，說明不選另一種的原因</td></tr>
-      <tr><td>維運既有系統</td><td>從事件與指標找出錯誤假設</td><td>提出可回滾的改動、驗證方法與停止條件</td></tr>
-      <tr><td>產品或技術主管</td><td>把「快速、可靠、便宜」改成有邊界的承諾</td><td>知道提高哪個目標會增加哪些成本與交付風險</td></tr>
+      <tr><td>初涉後端架構</td><td>先理清一條端到端的請求路徑，再標記所有會持久化狀態的節點</td><td>能把接收、處理、失敗、重試四種生命週期說得一清二楚</td></tr>
+      <tr><td>準備系統設計面試</td><td>先主動用假設限縮邊界，再挑選一到兩個核心瓶頸深入剖析</td><td>能在有限時間內對比兩種方案的優缺點，並清楚解釋不選另一個的具體原因</td></tr>
+      <tr><td>維運線上既有系統</td><td>從歷史事故與監控指標中，揪出當初架構假設與現實脫節的地方</td><td>能提出具備灰度驗證、可快速回滾且有明確停止條件的重構方案</td></tr>
+      <tr><td>產品經理與技術主管</td><td>把空泛的「又要快、又要穩、又要省錢」轉化為有明確邊界的 SLA 承諾</td><td>能清楚預判每提高一個可用性層級，會連帶增加多少工程成本與架構複雜度</td></tr>
     </tbody>
   </table>
-  <p>請用同一個案例做三次練習。第一次只服務十個租戶，每日一千份文件，重點是正確性與最小運維負擔。第二次改成一萬租戶、每日一百萬份，加入流量隔離與容量估算。第三次假設一個可用區失效、通知供應商中斷一小時、某租戶上傳惡意文件。設計時要說明哪些機制可以保留、哪些必須升級；第三階段才需要的複雜度，不必提前全部塞進第一版。</p>
-  <p>評估能力時，要區分「背得出名詞」與「能推出行為」。你可能知道 eventual consistency 的翻譯，卻無法說明使用者剛刪除文件後，為何搜尋結果還短暫出現它。後者才會影響介面、授權與客服。如果你能指出「<mark class="mark-blue">搜尋索引可延遲更新，但下載授權仍要檢查權威狀態</mark>」，就已把抽象一致性轉成可實作的責任邊界。</p>
-  <p class="pitfall"><strong>常見誤區：</strong>拿大公司的最大規模架構當成唯一答案。多一個服務，就多一組部署、觀測、權限、網路與版本協調工作。小團隊選擇模組化單體和託管資料庫，可能比自建十種分散式元件更符合需求。</p>
-  <p class="exercise"><strong>練習：</strong>你只有三位工程師、六週開發期，預計每日一千份文件。一位同事提議第一天就採用跨區域主動主動部署與自建分片資料庫。請提出有條件的評估，而不是直接說好或不好。</p>
-  <details><summary>參考解答與推理</summary><p>先問是否存在跨區域連續營運、資料在地化或既有平台限制。若沒有，先以單區域多可用區的託管儲存、簡單工作佇列和模組化服務驗證產品較合理；保留 tenant_id、明確 API 與資料匯出能力作為演進基礎。若有不可妥協的區域災難目標，就需重新談交付時間、功能範圍或採用具備相應能力的託管方案。選擇架構時，把約束和理由說清楚，個人偏好不足以支持決定。</p></details>
+  <p>在學習過程中，建議拿同一個業務案例做三種不同規模的迭代練習。第一次只規劃服務十個企業客戶、每天一千份文件，目標是把流程做正確，並盡可能維持最低的維運負擔；第二次將規模放大到一萬家客戶、每日百萬份文件，這時就必須認真推導容量並加入多租戶資源隔離；第三次則帶入極端故障情境：例如單一可用區（AZ）完全斷電、第三方通知供應商中斷服務一小時，或是某個租戶惡意灌入大量壞檔案。這種分階段思考能幫你理清：哪些架構可以沿用，哪些機制必須升級，而不是一開始就把第三階段才需要的複雜度全部塞進第一版設計中。</p>
+  <p>評估架構能力的高低，關鍵在於「能否推導出系統行為」，而不僅僅是「能否背出名詞定義」。許多人能倒背 eventual consistency（最終一致性），卻無法解釋當使用者剛點擊刪除檔案時，為什麼同一秒在搜尋列還能搜出該筆資料；但偏偏就是這些細節，會直接衝擊前端介面呈現、權限校驗與客服成本。如果你能在白板前明確指出「<mark class="mark-blue">搜尋索引可以接受秒級非同步延遲，但下載原檔時的授權檢查必須對權威資料庫進行即時校驗</mark>」，你就已經把抽象的理論轉化為明確的系統工程邊界了。</p>
+  <p class="pitfall"><strong>常見思維誤區：</strong>盲目套用一線科技巨頭超大規模架構的設計。架構圖上每多劃一個微服務，團隊就得額外承擔一整套部署、鏈路追蹤、鑑權、網路逾時與版本兼容的維護開銷。對於早期團隊來說，一個架構乾淨的模組化單體配合雲端託管資料庫，往往比盲目拼裝十幾種分散式開源工具更可靠、更容易落地。</p>
+  <p class="exercise"><strong>實戰思考：</strong>如果你的團隊只有三位工程師、專案必須在六週內上線，預估每日文件量僅有一千份。這時有同事提議第一天就採用跨區域 Active-Active 雙活架構並自建分庫分表，你會如何給出有說服力且具體的評估？</p>
+  <details><summary>參考解答與推理</summary><p>不要直接否定或只說好與不好，而是從限制與成本切入。先確認業務是否存在嚴格的跨國低延遲要求、政府資料在地化法規，或不可妥協的跨區域災難復原指標。如果沒有這些前提，最合理的選擇是先以單一區域多可用區的託管資料庫、簡單的工作佇列與模組化架構快速驗證業務價值；同時在資料表預留 tenant_id 與乾淨的 API 介面，為未來的水平擴充鋪路。反之，如果業務真的有極端的區域災難指標，就必須坦白說明：以目前的時程與人力，必須重新調整功能範圍或採用昂貴的雲端全託管方案。架構選擇靠的是約束與取捨，而不是個人的技術偏好。</p></details>
 
   <h3 id="ch01-course-overview">1.3 課程總覽與學習方法（Course overview）</h3>
-  <p>學習路徑從需求開始，經過硬體與網路，再走向 API、儲存、快取、訊息傳遞、分散式協調以及整體案例。這個順序有因果關係：不知道要保護哪個使用者旅程，就無法定義可用性；不知道資料住在哪裡，就無法推導一次遠端存取的代價；不知道失敗可能發生在哪一步，就無法設計安全重試。後面的元件不會取代前面的推理。</p>
+  <p>本書的學習路徑是層層遞進的：從最源頭的需求分析開始，走過底層硬體與網路通訊，再深入探討 API 設計、儲存引擎、快取機制、非同步訊息傳遞與分散式協調，最終彙整至完整的端到端實戰案例。這樣的編排有嚴密的因果邏輯：如果連要保護哪條核心用戶旅程都還沒說清楚，你就無法定義什麼叫可用性；如果不知道資料在實體硬體上的搬運成本，就無法評估跨網路呼叫的真實代價；而如果不知道網路呼叫隨時可能卡住或失敗，就根本不可能設計出安全的重試機制。後面介紹的先進元件，永遠無法掩蓋前面邏輯推導上的漏洞。</p>
 <figure class="visual-explainer" id="visual-01-map"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="visual-01-map-title visual-01-map-desc"><title id="visual-01-map-title">一份文件，沿著六個責任邊界前進</title><desc id="visual-01-map-desc">先看使用者想完成什麼，再看每個元件負責哪一段。</desc><defs><marker id="visual-01-map-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#127c79"/></marker></defs><rect width="960" height="100%" rx="16" fill="#fff"/><text x="32" y="42" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="26" font-weight="700" text-anchor="start" fill="#163b42">一份文件，沿著六個責任邊界前進</text><text x="32" y="76" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#587078">先看使用者想完成什麼，再看每個元件負責哪一段。</text><rect x="32" y="120" width="260" height="100" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="50" y="152" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">1 · 上傳 API</text><text x="50" y="179" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">驗證租戶與文件大小</text><rect x="350" y="120" width="260" height="100" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="368" y="152" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">2 · 物件儲存</text><text x="368" y="179" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">保存原件；回傳物件參照</text><rect x="668" y="120" width="260" height="100" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="686" y="152" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">3 · 工作佇列</text><text x="686" y="179" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">保存待處理工作的意圖</text><rect x="668" y="315" width="260" height="100" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="686" y="347" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">4 · OCR 工作者</text><text x="686" y="374" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">取原件、辨識、存結果</text><rect x="350" y="315" width="260" height="100" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="368" y="347" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">5 · 狀態資料庫</text><text x="368" y="374" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">讓完成／失敗可查詢</text><rect x="32" y="315" width="260" height="100" rx="12" fill="#e5f5f1" stroke="#127c79" stroke-width="1.5"/><text x="50" y="347" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="21" font-weight="700" text-anchor="start" fill="#127c79">6 · 通知與畫面</text><text x="50" y="374" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="17" font-weight="400" text-anchor="start" fill="#163b42">提醒使用者查看結果</text><path d="M292 170 L347 170" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-01-map-arrow)"/><path d="M610 170 L665 170" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-01-map-arrow)"/><path d="M798 220 L798 312" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-01-map-arrow)"/><path d="M668 365 L613 365" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-01-map-arrow)"/><path d="M350 365 L295 365" fill="none" stroke="#127c79" stroke-width="2.5" marker-end="url(#visual-01-map-arrow)"/><rect x="24" y="478" width="912" height="44" rx="12" fill="#f0f5f6" stroke="none" stroke-width="1.5"/><text x="42" y="507" font-family="Noto Sans CJK TC, Microsoft JhengHei, sans-serif" font-size="18" font-weight="700" text-anchor="start" fill="#127c79">工作訊息通常帶「物件參照」，不把整份 5 MB 文件塞進每個訊息。</text></svg><figcaption>沿著 1→6 檢查每一步的確認點，以及中斷後由誰恢復工作。</figcaption></figure>
 
-<p>閱讀每一節時，請在紙上維護一份「設計紀錄」。第一欄寫需求與假設，第二欄寫目前方案，第三欄寫拒絕或延後的方案及理由，第四欄寫什麼觀測會觸發重審。例如「暫不分片」並非永遠不分片，而是當資料庫容量、寫入延遲或維護窗口出現已定義的門檻時重新評估。這樣的紀錄比只有最終架構圖更能幫助交接。</p>
+<p>在研讀每個章節時，建議隨手維護一份屬於你自己的「架構決策紀錄（Design Log）」。第一欄寫明具體的需求目標與業務假設；第二欄記錄當下採用的技術方案；第三欄寫下被你否決或決定暫緩的備選方案與理由；第四欄則清楚定義「看到什麼監控指標或事件時，必須重新啟動評估」。舉例來說，紀錄中寫的「現階段暫不進行資料分庫分表」，並不代表永遠不分，而是清楚約定「當主資料庫磁碟容量達到 70%、單次寫入延遲超過 100 ms 或維護窗口無法完成索引重建時，立刻重啟分片討論」。這樣的紀錄，比單純留下一張看似完美的最終架構圖，更能幫助團隊在未來穩健演進與交接。</p>
   <ol>
-    <li><strong>澄清需求：</strong>列使用者、核心行為、成功條件、排除事項與品質目標。</li>
-    <li><strong>估計規模：</strong>算請求率、儲存增長、資料傳輸與同時工作數；每個數字附單位。</li>
-    <li><strong>提出最小完整方案：</strong><mark>確保從輸入到可見結果都有責任歸屬</mark>。</li>
-    <li><strong>走查失敗：</strong>在每次網路呼叫、狀態寫入和外部副作用之間，想像程序隨時中斷。</li>
-    <li><strong>定位限制並演進：</strong>只對確定的瓶頸加機制，寫出它引入的新風險。</li>
-    <li><strong>定義證據：</strong>安排負載測試、還原演練、權限測試和使用者旅程指標。</li>
+    <li><strong>澄清需求：</strong>列出核心用戶、關鍵行為路徑、成功條件、排除事項與品質承諾。</li>
+    <li><strong>推導規模：</strong>算出每秒請求量（QPS）、儲存增長速率、網路頻寬消耗與併發工作量；每個數字都要附上嚴謹單位。</li>
+    <li><strong>提出最小可行架構：</strong><mark>確保資料從客戶端輸入到最終結果落地，每一段路徑都有明確的負責元件</mark>。</li>
+    <li><strong>走查失敗情境：</strong>在每一次網路呼叫、資料庫寫入與對外通知之間，假設程序隨時可能斷線或崩潰。</li>
+    <li><strong>鎖定真正瓶頸並迭代：</strong>只針對經過驗證的瓶頸增加機制，並同步寫下新機制帶來了哪些複雜度與風險。</li>
+    <li><strong>定義驗證數據：</strong>設計負載測試腳本、故障復原演練、權限邊界測試與端到端業務監控指標。</li>
   </ol>
-  <p>四十五分鐘的設計練習，可先用八分鐘確認需求與負載，十分鐘提出可行主流程，十五分鐘深入一至兩個關鍵問題，最後十二分鐘整理故障、取捨與演進，並依對話進度調整。實務上再用原型、負載測試、安全審查與團隊評估檢驗方案。</p>
-  <p>同一個「任務提交後不遺失」需求，可以用資料庫任務表、可靠佇列，或交易式 outbox 實現。比較方案時，明列<mark>提交與確認的邊界、重試責任，以及故障後如何恢復</mark>。官方文件用來確認元件語意，原始論文用來核對模型條件，實際量測用來決定容量。</p>
-  <p class="pitfall"><strong>常見誤區：</strong>只讀解答、不先做預測。看到「加入重試」時，先自己問重試是否會建立第二份任務、誰負責限制重試量、原請求的結果不明時怎麼辦，再讀後面的機制。你要練的是建立問題的能力。</p>
-  <p class="exercise"><strong>練習：</strong>平台回報「API p99 很快，但客戶一直抱怨慢」。列出三個可能漏量的時間區段，並寫出一個下一步調查。</p>
-  <details><summary>參考解答與推理</summary><p>可能漏了上傳大型文件的時間、任務在佇列等待的時間，以及處理完成後等待通知的時間；也可能只量到達後端的請求，漏掉 DNS 或連線失敗。下一步為每個 job_id 記錄 upload_completed、accepted、started、result_committed、notification_accepted 等事件，以相同租戶與工作類型比較端到端分布。若處理鏈跨服務，應把追蹤識別碼傳遞下去；不要先加快取，因為尚未找到慢在哪裡。</p></details>
+  <p>在典型的四十五分鐘系統設計面試或技術討論中，時間分配可以這樣掌握：前 8 分鐘專注於釐清業務邊界與流量估算，接下來 10 分鐘畫出端到端可行的主流程架構，隨後 15 分鐘挑出一到兩個最核心的技術瓶頸深入探討，最後 12 分鐘盤點極端故障應對、架構取捨與未來演進方向。這是一場有節奏的技術溝通，而不是一個人的自言自語。</p>
+  <p>以同一個「確保任務提交後絕不丟失」的需求為例，你可以選擇用關聯式資料庫的任務狀態表、高可用訊息佇列，或是 Transactional Outbox 模式來實現。在評估方案時，務必清楚交代<mark>資料在何時算提交成功、重試責任落在誰身上，以及系統重啟後如何恢復未完成的工作</mark>。善用官方文件確認元件的語意保證，研讀原始論文核對演算法的前提假設，並用真實世界的基準測試來決定你的硬體容量規劃。</p>
+  <p class="pitfall"><strong>常見思維誤區：</strong>只看不動腦的「直接看解答」。在看到內文寫「此處加入重試」時，先停下來問自己：這個重試會不會不小心建立了兩份重複的轉檔任務？由誰來避免重試風暴把下游打垮？如果原本的請求狀態不明該怎麼辦？先帶著問題思考，再去看後續的保護機制，這樣鍛鍊出來的工程直覺才會真正屬於你。</p>
+  <p class="exercise"><strong>實戰思考：</strong>線上監控回報「API 的 p99 延遲非常健康，但客戶卻不斷投訴系統很慢」。請列出三個可能被監控遺漏的延遲盲點，並說明下一步該如何調查？</p>
+  <details><summary>參考解答與推理</summary><p>這通常代表監控測量的範圍不完整。可能遺漏的盲點包括：客戶端上傳大型檔案的網路傳輸時間、任務進入內部佇列後的排隊等待時間，或是後端處理完畢後等待第三方通知發送的延遲；另一種可能是監控只計算了成功到達應用伺服器的請求，卻完全漏掉了前端 DNS 解析超時或連線建立失敗的請求。下一步應該為每個 job_id 埋點記錄關鍵事件節點（如 upload_completed、accepted、started、result_committed、notification_sent），並依據租戶與檔案類型拉出真實的端到端耗時分布。如果系統涉及微服務，務必把分散式追蹤識別碼（Trace ID）貫穿整條呼叫鏈；切記不要盲目加快取，因為你連到底卡在哪個環節都還沒弄清楚。</p></details>
 
-  <p class="chapter-summary"><strong>本章帶走：</strong>設計品質取決於能否用需求、單位、失敗情境與證據說明選擇。<mark>先完成一條可驗證的使用者旅程，再增加規模與故障條件</mark>。</p>
+  <p class="chapter-summary"><strong>本章精華：</strong>架構設計的專業度，取決於你能否用明確的數據、邊界假設、故障推導與驗證方案來說明你的技術選擇。<mark>永遠先完成一條端到端可驗證的核心路徑，再逐步疊加規模與容錯機制</mark>。</p>
   <h3 id="ch01-references">本章參考資料</h3>
   <ol class="references">
     <li>LeetCode 公開課綱：<a href="https://leetcode.com/explore/featured/card/system-design-for-interviews-and-beyond/">https://leetcode.com/explore/featured/card/system-design-for-interviews-and-beyond/</a></li>
