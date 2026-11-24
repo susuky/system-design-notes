@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """Build the standalone Traditional Chinese system-design reader (stdlib only)."""
 from __future__ import annotations
 import argparse
@@ -13,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 HIGHLIGHT_COMPONENTS = ('core', 'python', 'sql', 'json', 'http', 'promql')
-CHAPTERS = [('建立系統設計的思考框架', 'Introduction', '先把問題說清楚，再讓架構回應問題。', '基礎'), ('把需求轉成設計約束', 'Requirements', '量化流量、延遲、可用性與成長假設。', '基礎'), ('理解硬體與效能邊界', 'Hardware', '用 CPU、記憶體、磁碟與網路建立量級感。', '基礎'), ('讓元件正確溝通', 'Communication', '從協定、API 到分散式呼叫的失敗語意。', '基礎'), ('用快取換取速度', 'Caching', '在命中率、時效性與一致性之間做選擇。', '擴充'), ('以佇列拆開時間耦合', 'Queues', '理解非同步、重試、順序與交付保證。', '擴充'), ('深入儲存引擎的內部', 'Storage', '從存取模式與資料模型推導儲存方案。', '擴充'), ('讓通訊更有效率', 'Efficient communication', '降低等待、傳輸與扇出成本。', '擴充'), ('讓資料可靠地抵達', 'Reliability', '用複寫、隔離與復原處理不可避免的失敗。', '可靠'), ('批次與壓縮的取捨', 'Batching and compression', '攤薄成本，同時守住延遲與資源預算。', '可靠'), ('切分資料與工作負載', 'Partitioning', '處理熱點、路由、重新平衡與跨分區成本。', '可靠'), ('保護伺服器與下游', 'Server protection', '以限流、背壓與降級控制系統負載。', '可靠'), ('保護客戶端與使用者', 'Client protection', '設定逾時、退避與容錯，避免放大故障。', '可靠'), ('把元件連成設計方法', 'Epilogue', '用可驗證的取捨，完成端到端設計敘事。', '實戰'), ('設計短網址服務', 'URL shortener', '從編碼、唯一性一路走到擴充與濫用治理。', '實戰'), ('反詐、認證與監控實戰', 'Fraud, auth and monitoring', '把安全邊界與營運訊號納入完整架構。', '實戰')]
+CHAPTERS = [('系統與需求', 'Introduction', '先把問題說清楚，再讓架構回應問題。', '基礎'), ('容量與服務目標', 'Requirements', '量化流量、延遲、可用性與成長假設。', '基礎'), ('硬體與效能', 'Hardware', '用 CPU、記憶體、磁碟與網路建立量級感。', '基礎'), ('協定與通訊', 'Communication', '從協定、API 到分散式呼叫的失敗語意。', '基礎'), ('快取', 'Caching', '在命中率、時效性與一致性之間做選擇。', '擴充'), ('佇列與非同步', 'Queues', '理解非同步、重試、順序與交付保證。', '擴充'), ('儲存引擎', 'Storage', '從存取模式與資料模型推導儲存方案。', '擴充'), ('網路與傳輸', 'Efficient communication', '降低等待、傳輸與扇出成本。', '擴充'), ('重試與交付', 'Reliability', '用複寫、隔離與復原處理不可避免的失敗。', '可靠'), ('批次與壓縮', 'Batching and compression', '攤薄成本，同時守住延遲與資源預算。', '可靠'), ('分區與熱點', 'Partitioning', '處理熱點、路由、重新平衡與跨分區成本。', '可靠'), ('限流與背壓', 'Server protection', '以限流、背壓與降級控制系統負載。', '可靠'), ('逾時與隔離', 'Client protection', '設定逾時、退避與容錯，避免放大故障。', '可靠'), ('設計與驗證', 'Epilogue', '用可驗證的取捨，完成端到端設計敘事。', '實戰'), ('短網址服務', 'URL shortener', '從編碼、唯一性一路走到擴充與濫用治理。', '實戰'), ('安全與可觀測性', 'Fraud, auth and monitoring', '把安全邊界與營運訊號納入完整架構。', '實戰')]
 
 
 def validate_outline(outline):
@@ -204,7 +205,7 @@ class ChapterParser(HTMLParser):
 def build(root: Path = ROOT, output: Path | None = None):
     root = Path(root)
     output = Path(output) if output else root / 'index.html'
-    required = ['outline.json'] + [f'chapters/{i:02}.html' for i in range(1, 17)] + [f'source/{name}' for name in ['shell.html', 'styles.css', 'app.js', 'labs.html', 'labs.css', 'labs.js', 'visuals.js', 'legacy-visuals.css', 'highlight.css', 'highlight.js']]
+    required = ['outline.json'] + [f'chapters/{i:02}.html' for i in range(1, 17)] + [f'source/{name}' for name in ['shell.html', 'styles.css', 'app.js', 'labs.html', 'labs.css', 'labs.js', 'visuals.js', 'legacy-visuals.css', 'highlight.css', 'highlight.js', 'reader.css', 'reader.js', 'scenes.css', 'scenes.js', 'simulations.css', 'simulations.js']]
     required += [f'source/vendor/prism/prism-{name}.min.js' for name in HIGHLIGHT_COMPONENTS]
     required.append('source/vendor/prism/LICENSE')
     missing = [name for name in required if not (root / name).is_file()]
@@ -244,7 +245,7 @@ def build(root: Path = ROOT, output: Path | None = None):
             sidebar.append(f'<li class="nav-group">{group}</li>')
             previous_group = group
         sidebar.append(f'<li><a class="chapter-link" data-chapter="{chapter_id}" href="#{chapter_id}"><span class="chapter-number">{i:02}</span><span>{html.escape(short)}</span><span class="nav-done" aria-hidden="true"></span></a></li>')
-        cards.append(f'<li><a href="#{chapter_id}"><span class="map-number">{i:02}</span><span class="map-content"><strong>{html.escape(short)}</strong></span><span class="map-arrow" aria-hidden="true">↗</span></a></li>')
+        cards.append(f'<li><a href="#{chapter_id}"><span class="map-number">{i:02}</span><span class="map-content"><strong>{html.escape(short)}</strong><span class="map-summary">{html.escape(description)}</span></span><span class="map-arrow" aria-hidden="true">↗</span></a></li>')
     source = root / 'source'
     prism = source / 'vendor' / 'prism'
     highlight_js = '\n'.join([
@@ -255,10 +256,11 @@ def build(root: Path = ROOT, output: Path | None = None):
     ])
     topic_count = sum(len(ch['topics']) for ch in outline['chapters'])
     replacements = {
-        'STYLES': '\n'.join((source / name).read_text(encoding='utf-8') for name in ['styles.css', 'legacy-visuals.css', 'labs.css', 'highlight.css']),
+        'STYLES': '\n'.join((source / name).read_text(encoding='utf-8') for name in ['styles.css', 'legacy-visuals.css', 'labs.css', 'highlight.css', 'scenes.css', 'reader.css', 'simulations.css']),
         'HIGHLIGHT_JS': highlight_js,
         'APP_JS': (source / 'app.js').read_text(encoding='utf-8'),
-        'LABS_JS': (source / 'labs.js').read_text(encoding='utf-8'),
+        'READER_JS': (source / 'reader.js').read_text(encoding='utf-8'),
+        'LABS_JS': '\n'.join((source / name).read_text(encoding='utf-8') for name in ['labs.js', 'scenes.js', 'simulations.js']),
         'VISUALS_JS': (source / 'visuals.js').read_text(encoding='utf-8'),
         'CHAPTERS': '\n'.join(contents),
         'CHAPTER_META': json.dumps(meta, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c').replace('\u2028', '\\u2028').replace('\u2029', '\\u2029'),

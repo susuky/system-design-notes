@@ -119,7 +119,7 @@ class Element{
   get textContent(){return this.children.map(x=>typeof x==='string'?x:x.textContent).join('');}set textContent(v){this.children=[String(v)];}
   get hidden(){return 'hidden'in this.attrs;}set hidden(v){if(v)this.attrs.hidden='';else delete this.attrs.hidden;}
   get disabled(){return 'disabled'in this.attrs;}set disabled(v){if(v)this.attrs.disabled='';else delete this.attrs.disabled;}
-  setAttribute(k,v){this.attrs[k]=String(v);}getAttribute(k){return this.attrs[k]??null;}
+  setAttribute(k,v){this.attrs[k]=String(v);}getAttribute(k){return this.attrs[k]??null;}removeAttribute(k){delete this.attrs[k];}
   append(...items){for(const x of items){if(typeof x!=='string')x.parentElement=this;this.children.push(x);}}
   replaceChildren(...items){this.children=[];this.append(...items);}
   querySelectorAll(s){const out=[];const walk=e=>{for(const c of e.children){if(typeof c==='string')continue;if(matches(c,s))out.push(c);walk(c);}};walk(this);return out;}
@@ -145,12 +145,12 @@ check('Previous, next, reset, and direct reveal preserve selected-frame state',(
  model.reveal(frames[3].querySelector('p'));assert.equal(story.dataset.currentStep,'3');model.reveal(null);action('reset').click();assert.equal(story.dataset.currentStep,'0');
 });
 check('Autoplay stops at the last frame and does not accumulate timers',()=>{
- action('play').click();for(let i=0;i<frames.length+2;i++)tick();assert.equal(story.dataset.currentStep,String(frames.length-1));assert.equal(action('play').getAttribute('aria-pressed'),'false');assert.equal(timers.size,0);assert.equal(action('next').disabled,true);
+ action('play').click();for(let i=0;i<frames.length+2;i++)tick();assert.equal(story.dataset.currentStep,String(frames.length-1));assert.equal(story.dataset.playing,'false');assert.equal(action('play').textContent,'自動播放');assert.equal(timers.size,0);assert.equal(action('next').disabled,true);
  action('play').click();assert.equal(story.dataset.currentStep,'0');action('play').click();tick();assert.equal(story.dataset.currentStep,'0');assert.equal(timers.size,0);
 });
 check('Route changes, hidden chapters, and background tabs stop playback',()=>{
  action('play').click();event('hashchange');assert.equal(timers.size,0);
- action('play').click();story.closest('article').hidden=true;tick();assert.equal(action('play').getAttribute('aria-pressed'),'false');story.closest('article').hidden=false;
+ action('play').click();story.closest('article').hidden=true;tick();assert.equal(story.dataset.playing,'false');assert.equal(action('play').textContent,'自動播放');story.closest('article').hidden=false;
  action('play').click();doc.visibilityState='hidden';event('doc:visibilitychange');assert.equal(timers.size,0);doc.visibilityState='visible';
 });
 check('Printing reveals every frame and restores each selected frame',()=>{
@@ -212,6 +212,7 @@ class ContentTests(unittest.TestCase):
         for chapter in outline['chapters']:
             headings = [normalized(h) for h in re.findall(
                 r'<h[34]\b[^>]*>(.*?)</h[34]>', self.chapters[chapter['id']], re.S)]
+            headings += [normalized(value) for value in re.findall(r'data-syllabus="([^"]+)"', self.chapters[chapter['id']])]
             for topic in chapter['topics']:
                 candidates = [topic] + ALIASES.get((chapter['id'], topic), [])
                 with self.subTest(chapter=chapter['id'], topic=topic):

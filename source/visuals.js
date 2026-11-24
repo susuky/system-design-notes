@@ -26,7 +26,7 @@
     function stop() {
       if(timer!==null)clearTimeout(timer);
       timer=null;playing=false;panel.dataset.playing="false";
-      action('play').textContent='自動播放';action('play').setAttribute('aria-pressed','false');
+      action('play').textContent='自動播放';action('play').removeAttribute('aria-pressed');controls.querySelector('.story-position').setAttribute('aria-live','polite');
     }
     function render() {
       frames.forEach((frame,i)=>{frame.hidden=i!==index;});
@@ -48,13 +48,14 @@
     action('play').addEventListener('click',()=>{
       if(playing){stop();return;}
       if(index===frames.length-1){index=0;render();}
-      playing=true;panel.dataset.playing='true';action('play').textContent='暫停播放';action('play').setAttribute('aria-pressed','true');timer=setTimeout(tick,2400);
+      playing=true;panel.dataset.playing='true';action('play').textContent='暫停播放';action('play').removeAttribute('aria-pressed');controls.querySelector('.story-position').setAttribute('aria-live','off');timer=setTimeout(tick,2400);
     });
     controls.hidden=false;render();
     controllers.set(panel,{stop,render,frames,reveal(target){const n=frames.findIndex(f=>f===target||f.contains(target));if(n>=0){stop();index=n;render();}}});
   }
   const pauseAll=()=>controllers.forEach(c=>c.stop());
   window.addEventListener('hashchange',pauseAll);
+  document.addEventListener('course:route',pauseAll);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')pauseAll();});
   window.addEventListener('beforeprint',()=>{pauseAll();controllers.forEach(c=>c.frames.forEach(f=>f.hidden=false));});
   window.addEventListener('afterprint',()=>controllers.forEach(c=>c.render()));

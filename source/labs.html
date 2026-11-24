@@ -1,6 +1,10 @@
 <section class="sd-lab" id="lab-sd-cache" data-sd-lab="cache" aria-labelledby="lab-sd-cache-title">
-  <div class="sd-lab-heading"><span class="sd-lab-number">01</span><div><h3 id="lab-sd-cache-title">快取旁路</h3></div><a class="sd-lab-chapter-link" href="#chapter-05">第 05 章</a></div>
+  <div class="sd-lab-heading"><div><h3 id="lab-sd-cache-title">快取旁路</h3></div><a class="sd-lab-chapter-link" href="#chapter-05">第 05 章</a></div>
   <p class="sd-lab-assumption">資料庫初始為 v1，W 提交 v2。選擇失效與舊讀取回填的順序，觀察 R1–R3；快取不設 TTL。</p>
+  <div class="sd-lab-stage js-only"><div class="sd-lab-plot"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div></div>
+  <div class="sd-lab-controls js-only" role="group" aria-label="快取旁路步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
+<dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  <details class="sd-lab-settings js-only"><summary>調整參數</summary>
   <form class="sd-lab-inputs js-only" novalidate>
   <label for="lab-sd-cache-initial"><span>資料庫原值</span><input id="lab-sd-cache-initial" name="initial" type="number" min="-99" max="999" step="1" value="10" required aria-describedby="lab-sd-cache-error"></label>
 <label for="lab-sd-cache-updated"><span>寫入後的新值</span><input id="lab-sd-cache-updated" name="updated" type="number" min="-99" max="999" step="1" value="20" required aria-describedby="lab-sd-cache-error"></label>
@@ -9,14 +13,17 @@
 
   <p id="lab-sd-cache-error" class="sd-lab-error" role="alert" hidden></p>
   </form>
-  <div class="sd-lab-controls js-only" role="group" aria-label="快取旁路步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
-  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  </details>
   <div class="sd-lab-principle"><p class="sd-lab-challenge">選「刪除後，舊讀取回填」。W 已經刪過快取，R3 為何仍讀到 v1？再把原值與新值設成相同數字，觀察版本。</p></div>
 </section>
 
 <section class="sd-lab" id="lab-sd-queue" data-sd-lab="queue" aria-labelledby="lab-sd-queue-title">
-  <div class="sd-lab-heading"><span class="sd-lab-number">02</span><div><h3 id="lab-sd-queue-title">佇列與背壓</h3></div><a class="sd-lab-chapter-link" href="#chapter-06">第 06 章</a></div>
+  <div class="sd-lab-heading"><div><h3 id="lab-sd-queue-title">佇列與背壓</h3></div><a class="sd-lab-chapter-link" href="#chapter-06">第 06 章</a></div>
   <p class="sd-lab-assumption">每拍先入列，再由 worker 處理；每份工作成本相同。暫停送入的工作保留在來源待送區。</p>
+  <div class="sd-lab-stage js-only"><div class="sd-lab-plot"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div></div>
+  <div class="sd-lab-controls js-only" role="group" aria-label="佇列與背壓步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
+<dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  <details class="sd-lab-settings js-only"><summary>調整參數</summary>
   <form class="sd-lab-inputs js-only" novalidate>
   <label for="lab-sd-queue-arrivals"><span>每拍新工作數（1–8 拍，各 0–6）</span><input id="lab-sd-queue-arrivals" name="arrivals" type="text" maxlength="100" spellcheck="false" value="4, 3, 0, 2" required aria-describedby="lab-sd-queue-error"></label>
 <label for="lab-sd-queue-capacity"><span>佇列容量</span><input id="lab-sd-queue-capacity" name="capacity" type="number" min="1" max="6" step="1" value="3" required aria-describedby="lab-sd-queue-error"></label>
@@ -26,14 +33,17 @@
 
   <p id="lab-sd-queue-error" class="sd-lab-error" role="alert" hidden></p>
   </form>
-  <div class="sd-lab-controls js-only" role="group" aria-label="佇列與背壓步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
-  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  </details>
   <div class="sd-lab-principle"><p class="sd-lab-challenge">把處理量設成 0，比較暫停與拒絕：工作分別留在哪裡？哪個位置還需要容量上限？</p></div>
 </section>
 
 <section class="sd-lab" id="lab-sd-retry" data-sd-lab="retry" aria-labelledby="lab-sd-retry-title">
-  <div class="sd-lab-heading"><span class="sd-lab-number">03</span><div><h3 id="lab-sd-retry-title">重試與冪等</h3></div><a class="sd-lab-chapter-link" href="#chapter-09">第 09 章</a></div>
+  <div class="sd-lab-heading"><div><h3 id="lab-sd-retry-title">重試與冪等</h3></div><a class="sd-lab-chapter-link" href="#chapter-09">第 09 章</a></div>
   <p class="sd-lab-assumption">M1 的 ACK 可遺失，重試沿用同一 ID。啟用去重時，業務變更與 ID 在同一筆交易提交，紀錄全程保留。</p>
+  <div class="sd-lab-stage js-only"><div class="sd-lab-plot"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div></div>
+  <div class="sd-lab-controls js-only" role="group" aria-label="重試與冪等步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
+<dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  <details class="sd-lab-settings js-only"><summary>調整參數</summary>
   <form class="sd-lab-inputs js-only" novalidate>
   <label for="lab-sd-retry-amount"><span>每筆增加量</span><input id="lab-sd-retry-amount" name="amount" type="number" min="1" max="100" step="1" value="5" required aria-describedby="lab-sd-retry-error"></label>
 <label for="lab-sd-retry-lostAcks"><span>M1 遺失 ACK 次數</span><input id="lab-sd-retry-lostAcks" name="lostAcks" type="number" min="0" max="3" step="1" value="1" required aria-describedby="lab-sd-retry-error"></label>
@@ -42,14 +52,17 @@
 
   <p id="lab-sd-retry-error" class="sd-lab-error" role="alert" hidden></p>
   </form>
-  <div class="sd-lab-controls js-only" role="group" aria-label="重試與冪等步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
-  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  </details>
   <div class="sd-lab-principle"><p class="sd-lab-challenge">關閉去重，把 ACK 遺失次數改成 3。預期只有 M1、M2 兩筆操作，實際提交幾次？</p></div>
 </section>
 
 <section class="sd-lab" id="lab-sd-replication" data-sd-lab="replication" aria-labelledby="lab-sd-replication-title">
-  <div class="sd-lab-heading"><span class="sd-lab-number">04</span><div><h3 id="lab-sd-replication-title">複寫與一致性</h3></div><a class="sd-lab-chapter-link" href="#chapter-02">第 02 章</a></div>
+  <div class="sd-lab-heading"><div><h3 id="lab-sd-replication-title">複寫與一致性</h3></div><a class="sd-lab-chapter-link" href="#chapter-02">第 02 章</a></div>
   <p class="sd-lab-assumption">單一寫入者、主節點與副本。每次讀寫推進一拍，日誌依序套用；token 表示此工作階段已確認的版本。</p>
+  <div class="sd-lab-stage js-only"><div class="sd-lab-plot"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div></div>
+  <div class="sd-lab-controls js-only" role="group" aria-label="複寫與一致性步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
+<dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  <details class="sd-lab-settings js-only"><summary>調整參數</summary>
   <form class="sd-lab-inputs js-only" novalidate>
   <label for="lab-sd-replication-writes"><span>依序寫入的值（1–4 筆，−99–999）</span><input id="lab-sd-replication-writes" name="writes" type="text" maxlength="100" spellcheck="false" value="10, 20" required aria-describedby="lab-sd-replication-error"></label>
 <label for="lab-sd-replication-lag"><span>複寫延遲（拍）</span><input id="lab-sd-replication-lag" name="lag" type="number" min="0" max="3" step="1" value="2" required aria-describedby="lab-sd-replication-error"></label>
@@ -58,14 +71,17 @@
 
   <p id="lab-sd-replication-error" class="sd-lab-error" role="alert" hidden></p>
   </form>
-  <div class="sd-lab-controls js-only" role="group" aria-label="複寫與一致性步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
-  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  </details>
   <div class="sd-lab-principle"><p class="sd-lab-challenge">用延遲 3 拍讀副本，再改成帶 token。哪些讀取改由主節點服務？</p></div>
 </section>
 
 <section class="sd-lab" id="lab-sd-token-bucket" data-sd-lab="token-bucket" aria-labelledby="lab-sd-token-bucket-title">
-  <div class="sd-lab-heading"><span class="sd-lab-number">05</span><div><h3 id="lab-sd-token-bucket-title">權杖桶限流</h3></div><a class="sd-lab-chapter-link" href="#chapter-12">第 12 章</a></div>
+  <div class="sd-lab-heading"><div><h3 id="lab-sd-token-bucket-title">權杖桶限流</h3></div><a class="sd-lab-chapter-link" href="#chapter-12">第 12 章</a></div>
   <p class="sd-lab-assumption">t=0 滿桶；之後每拍先補充，再依序扣除請求成本。權杖不足就拒絕，該請求結束。</p>
+  <div class="sd-lab-stage js-only"><div class="sd-lab-plot"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div></div>
+  <div class="sd-lab-controls js-only" role="group" aria-label="權杖桶限流步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
+<dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  <details class="sd-lab-settings js-only"><summary>調整參數</summary>
   <form class="sd-lab-inputs js-only" novalidate>
   <label for="lab-sd-token-bucket-arrivals"><span>每拍請求數（1–8 拍，各 0–6）</span><input id="lab-sd-token-bucket-arrivals" name="arrivals" type="text" maxlength="100" spellcheck="false" value="6, 2, 4, 0, 3" required aria-describedby="lab-sd-token-bucket-error"></label>
 <label for="lab-sd-token-bucket-capacity"><span>桶容量</span><input id="lab-sd-token-bucket-capacity" name="capacity" type="number" min="1" max="8" step="1" value="4" required aria-describedby="lab-sd-token-bucket-error"></label>
@@ -75,14 +91,17 @@
 
   <p id="lab-sd-token-bucket-error" class="sd-lab-error" role="alert" hidden></p>
   </form>
-  <div class="sd-lab-controls js-only" role="group" aria-label="權杖桶限流步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
-  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  </details>
   <div class="sd-lab-principle"><p class="sd-lab-challenge">把單次成本設得比桶容量大，再加入幾拍 0 請求。等待後的餘額是否足以放行？</p></div>
 </section>
 
 <section class="sd-lab" id="lab-sd-hashing" data-sd-lab="hashing" aria-labelledby="lab-sd-hashing-title">
-  <div class="sd-lab-heading"><span class="sd-lab-number">06</span><div><h3 id="lab-sd-hashing-title">一致性雜湊</h3></div><a class="sd-lab-chapter-link" href="#chapter-11">第 11 章</a></div>
+  <div class="sd-lab-heading"><div><h3 id="lab-sd-hashing-title">一致性雜湊</h3></div><a class="sd-lab-chapter-link" href="#chapter-11">第 11 章</a></div>
   <p class="sd-lab-assumption">0–99 的環上，每個 key 路由到順時針第一個節點，包含相等位置。每台機器占一個位置。</p>
+  <div class="sd-lab-stage js-only"><div class="sd-lab-plot"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div></div>
+  <div class="sd-lab-controls js-only" role="group" aria-label="一致性雜湊步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
+<dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  <details class="sd-lab-settings js-only"><summary>調整參數</summary>
   <form class="sd-lab-inputs js-only" novalidate>
   <label for="lab-sd-hashing-nodes"><span>既有節點位置（2–5 個，不重複）</span><input id="lab-sd-hashing-nodes" name="nodes" type="text" maxlength="100" spellcheck="false" value="15, 45, 80" required aria-describedby="lab-sd-hashing-error"></label>
 <label for="lab-sd-hashing-added"><span>新增節點 N 的位置</span><input id="lab-sd-hashing-added" name="added" type="number" min="0" max="99" step="1" value="60" required aria-describedby="lab-sd-hashing-error"></label>
@@ -91,7 +110,6 @@
 
   <p id="lab-sd-hashing-error" class="sd-lab-error" role="alert" hidden></p>
   </form>
-  <div class="sd-lab-controls js-only" role="group" aria-label="一致性雜湊步驟"><button type="button" data-sd-action="prev">上一步</button><button type="button" data-sd-action="next">下一步</button><button type="button" data-sd-action="reset">重設</button><button type="button" data-sd-action="last">結果</button><span class="sd-lab-step">步驟 1</span></div>
-  <div class="sd-lab-stage js-only"><div class="sd-lab-phase"></div><div class="sd-lab-visual"></div><dl class="sd-lab-vars" aria-label="目前狀態"></dl><p class="sd-lab-explanation" role="status" aria-live="polite" aria-atomic="true"></p><details class="sd-lab-invariants"><summary>不變量</summary><ul class="sd-lab-checks"></ul></details></div>
+  </details>
   <div class="sd-lab-principle"><p class="sd-lab-challenge">把 N 放到 0，加入位置 99、0、1 的 key，查看跨過環起點時的路由。</p></div>
 </section>

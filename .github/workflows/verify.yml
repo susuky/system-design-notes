@@ -23,7 +23,12 @@ jobs:
           python build.py
           python -m unittest discover -s tests -p 'test_build.py'
           python tests/test_content.py --html index.html
+          node --check source/reader.js
+          node --check source/scenes.js
+          node --check source/simulations.js
           node tests/test_labs.js
+          node tests/test_scenes.js
+          node tests/test_simulations.js
           node tests/test_dom.mjs
       - name: Check generated HTML
         run: git diff --exit-code -- index.html

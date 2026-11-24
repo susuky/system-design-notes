@@ -31,7 +31,8 @@
   function save() {
     try { localStorage.setItem(storageKey, JSON.stringify(state)); storageAvailable = true; }
     catch (_) { storageAvailable = false; }
-    $('storage-note').textContent = storageAvailable ? '進度與書籤儲存在此瀏覽器。' : '瀏覽器無法保存資料，關閉後會遺失本次進度。';
+    $('storage-note').hidden = storageAvailable;
+    if (!storageAvailable) $('storage-note').textContent = '瀏覽器無法保存資料，關閉後會遺失本次進度。';
   }
   function setTheme() {
     document.documentElement.dataset.theme = state.theme === 'system' ? (systemDark.matches ? 'dark' : 'light') : state.theme;
@@ -54,7 +55,7 @@
       $('bookmark-button').setAttribute('aria-pressed', String(bookmarked));
       $('bookmark-button').querySelector('span').textContent = bookmarked ? '已加入書籤' : '加入書籤';
       $('complete-button').setAttribute('aria-pressed', String(complete));
-      $('complete-button').querySelector('span').textContent = complete ? '已完成' : '標記完成';
+      $('complete-button').querySelector('span').textContent = complete ? '本章已完成' : '完成本章';
     }
     if (state.last) {
       const chapter = meta.find(c => c.id === state.last.chapter);
@@ -100,7 +101,7 @@
     if (!current) return;
     let anchor = current.id;
     for (const topic of current.topics) {
-      if ($(topic.id).getBoundingClientRect().top <= 150) anchor = topic.id;
+      if (!$(topic.id).closest('[hidden]') && $(topic.id).getBoundingClientRect().top <= 150) anchor = topic.id;
     }
     state.last = {chapter: current.id, anchor};
   }
@@ -145,6 +146,10 @@
       }
       state.last = {chapter: current.id, anchor: hash || current.id}; save();
     } else document.title = '系統設計';
+    if (window.CourseReader) {
+      target = window.CourseReader.show(current, target);
+      if (current) { state.last = {chapter: current.id, anchor: target.id || target.closest('.lesson-unit')?.dataset.lesson || current.id}; save(); }
+    }
     refreshProgress();
     if ($('sidebar').classList.contains('is-open')) setDrawer(false, false);
     if (target.id === 'course-home') { window.scrollTo({top: 0, behavior: 'instant'}); target.focus({preventScroll: true}); }
@@ -154,7 +159,10 @@
       while (ancestor && ancestor !== document.body) { if (ancestor.tagName === 'DETAILS') ancestor.open = true; ancestor = ancestor.parentElement; }
       window.SystemDesignVisuals?.reveal(target);
       requestAnimationFrame(() => {
-        target.scrollIntoView({block: 'start'});
+        let scrollTarget = target;
+        if (target.matches('[data-sd-simulation]')) scrollTarget = $('system-labs');
+        else if (target.matches('[data-sd-lab]')) scrollTarget = document.querySelector('#system-labs .trace-title') || target;
+        scrollTarget.scrollIntoView({block: 'start'});
         if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
         target.focus({preventScroll: true});
       });
@@ -168,7 +176,7 @@
     let node, section = {id: chapter.id, chapter: chapter.short, title: chapter.title, text: '', keywords: chapter.keywords, nodes: []};
     while ((node = walker.nextNode())) {
       const tag = node.tagName.toUpperCase();
-      if (tag === 'H3' && node.id) { searchIndex.push(section); section = {id: node.id, chapter: chapter.short, title: node.textContent.trim(), text: '', keywords: '', nodes: []}; }
+      if (tag === 'H3' && node.id) { searchIndex.push(section); section = {id: node.id, chapter: chapter.short, title: node.textContent.trim(), text: '', keywords: node.dataset.syllabus || '', nodes: []}; }
       if (['P', 'LI', 'PRE', 'FIGCAPTION', 'TD', 'TH', 'SUMMARY', 'H2', 'H4', 'TEXT'].includes(tag)) { section.text += ' ' + node.textContent.trim(); section.nodes.push(node); }
     }
     searchIndex.push(section);
@@ -269,6 +277,7 @@
   window.addEventListener('beforeprint', beforePrint);
   window.addEventListener('afterprint', afterPrint);
   document.body.classList.remove('no-js'); document.body.classList.add('js');
+  window.SystemDesignSimulation?.init(document);
   setTheme(); save(); route();
   window.SystemDesignLabs.init(document);
 })();

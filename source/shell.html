@@ -5,50 +5,128 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'">
-<meta name="description" content="繁體中文系統設計教材：16 章、架構圖解、設計練習與 6 個互動實驗，支援離線閱讀。">
+<meta name="description" content="系統設計互動教材：以逐步情境、可調參數與完整推導學習。">
 <title>系統設計</title>
 <style>{{STYLES}}</style>
 </head>
-<body class="no-js">
+<body class="no-js" data-course="sd">
+<svg class="sd-symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="sd-icon-client" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M3 12h18m-9 4v4m-4 0h8"/></symbol>
+  <symbol id="sd-icon-router" viewBox="0 0 24 24"><path d="M5 12h5m4 0h5m-5 0 4-6m-4 6 4 6m-3-12h3v3m-3 9h3v-3"/><circle cx="3" cy="12" r="1.5"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="sd-icon-server" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="7" rx="2"/><rect x="4" y="14" width="16" height="7" rx="2"/><path d="M8 6.5h.1m3 0h5m-8.1 11h.1m3 0h5"/></symbol>
+  <symbol id="sd-icon-cache" viewBox="0 0 24 24"><path d="m3 8 9-5 9 5-9 5-9-5Zm0 4 9 5 9-5M3 16l9 5 9-5"/></symbol>
+  <symbol id="sd-icon-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5.5" rx="8" ry="2.5"/><path d="M4 5.5v13c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5v-13M4 12c0 1.4 3.6 2.5 8 2.5s8-1.1 8-2.5"/></symbol>
+  <symbol id="sd-icon-queue" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M9 6v12m6-12v12M5.5 12h1m5 0h1m5 0h1"/></symbol>
+  <symbol id="sd-icon-pause" viewBox="0 0 24 24"><path d="m7 7-4 4 4 4M3 11h11m3-6v14m4-14v14"/></symbol>
+  <symbol id="sd-icon-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+  <symbol id="sd-icon-activity" viewBox="0 0 24 24"><path d="M3 14h5l3-8 3 12 3-8 2 4h2"/></symbol>
+  <symbol id="sd-icon-arrow" viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></symbol>
+  <symbol id="sd-icon-play" viewBox="0 0 24 24"><path d="m8 5 12 7-12 7V5Z"/></symbol>
+  <symbol id="sd-icon-reset" viewBox="0 0 24 24"><path d="M5 8V4m0 4h4M5 8a8 8 0 1 1-.5 7"/></symbol>
+  <symbol id="sd-art-client" viewBox="0 0 80 60"><path class="art-top" d="m11 12 7-6h46l6 5-7 6Z"/><path class="art-side" d="m63 13 7-3v29l-7 6Z"/><rect class="art-shell" x="10" y="12" width="53" height="32" rx="3"/><path class="art-glass" d="M15 17h43v20H15z"/><path class="art-detail" d="m21 23 4 3-4 3m8 0h8"/><path class="art-shell" d="M33 44h10l1 5 9 3v2H23v-2l9-3Z"/><circle class="art-lamp" cx="57" cy="40.5" r="1.25"/></symbol>
+  <symbol id="sd-art-router" viewBox="0 0 80 60"><path class="art-side" d="m7 24 33 15 33-15v11L40 52 7 36Z"/><path class="art-shell" d="M7 21 40 5l33 16-33 17Z"/><path class="art-top" d="M14 21 40 9l26 12-26 12Z"/><path class="art-detail" d="m26 21 8-4 10 4 8-4m-8 4-7 4m8-8 3-1 4 1m-18 8 3 1 3-1"/><path class="art-detail" d="m14 32 8 4m4 2 4 2"/><circle class="art-lamp" cx="60" cy="34.5" r="1.6"/></symbol>
+  <symbol id="sd-art-server" viewBox="0 0 80 60"><path class="art-side" d="m10 33 10-7h42l7 4v14l-9 6H10Z"/><path class="art-top" d="m10 33 10-7h42l7 4-9 5Z"/><rect class="art-shell" x="10" y="33" width="50" height="15" rx="2.3"/><path class="art-side" d="m10 13 10-7h42l7 4v14l-9 6H10Z"/><path class="art-top" d="m10 13 10-7h42l7 4-9 5Z"/><rect class="art-shell" x="10" y="13" width="50" height="15" rx="2.3"/><path class="art-detail" d="M19 20h15m-15 20h15m3-20h3m-3 20h3"/><circle class="art-lamp" cx="52" cy="20.5" r="2.2"/><circle class="art-lamp" cx="52" cy="40.5" r="2.2"/></symbol>
+  <symbol id="sd-art-cache" viewBox="0 0 80 60"><path class="art-detail" d="M22 5v6m9-6v6m9-6v6m9-6v6m9-6v6M22 49v6m9-6v6m9-6v6m9-6v6m9-6v6M8 18h9m-9 8h9m-9 8h9m-9 8h9m46-24h9m-9 8h9m-9 8h9m-9 8h9"/><rect class="art-side" x="17" y="11" width="47" height="39" rx="5"/><rect class="art-shell" x="14" y="9" width="49" height="39" rx="5"/><rect class="art-glass" x="20" y="15" width="37" height="27" rx="3"/><circle class="art-lamp" cx="18" cy="13" r="1.3"/></symbol>
+  <symbol id="sd-art-db" viewBox="0 0 80 60"><path class="art-shell" d="M13 15c0-5.5 12-10 27-10s27 4.5 27 10v29c0 6-12 11-27 11S13 50 13 44Z"/><path class="art-side" d="M13 38c5 11 47 13 54 0v6c0 6-12 11-27 11S13 50 13 44Z"/><ellipse class="art-top" cx="40" cy="15" rx="27" ry="9"/><path class="art-detail" d="M19 46c3 2 6 3 9 3"/><circle class="art-lamp" cx="59.5" cy="44.5" r="1.6"/></symbol>
+  <symbol id="sd-art-check" viewBox="0 0 80 60"><path class="art-side" d="M23 8h31l10 10v31l-7 4H20V13Z"/><path class="art-shell" d="M18 12h29l11 11v29H18Z"/><path class="art-top" d="M47 12v11h11Z"/><path class="art-detail" d="m25 30 4 4 9-10m-12 17h22m-22 5h13"/></symbol>
+  <symbol id="sd-art-pause" viewBox="0 0 80 60"><path class="art-shell" d="m18 13 39-1 8 8v21l-8 7H19l-5-6V20Z"/><path class="art-detail" d="M54 22v8H29m7-7-8 7 8 7"/><circle class="art-lamp" cx="57" cy="40" r="1.5"/></symbol>
+  <symbol id="sd-art-reject" viewBox="0 0 80 60"><path class="art-shell" d="M25 9h30l10 11v20L54 51H25L14 40V20Z"/><path class="art-detail" d="m31 21 18 18m0-18L31 39"/></symbol>
+</svg>
 <a class="skip-link" href="#main-content">跳至主要內容</a>
 <header class="topbar">
-  <button class="icon-button menu-button js-only" id="menu-button" type="button" aria-label="開啟章節目錄" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
-  <a class="brand" href="#course-home" aria-label="系統設計首頁"><svg class="brand-symbol" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="9" width="7" height="10" rx="1"/><rect x="11" y="4" width="7" height="15" rx="1"/><rect x="20" y="9" width="6" height="10" rx="1"/><path d="M5 23h18"/></svg><span>系統設計</span></a>
-  <div class="topbar-actions js-only"><button class="search-trigger" id="search-button" type="button" aria-label="搜尋全書"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><span>搜尋全書</span><kbd>/</kbd></button><label class="theme-control"><span class="sr-only">顯示主題</span><select id="theme-select" aria-label="顯示主題"><option value="system">跟隨系統</option><option value="light">淺色</option><option value="dark">深色</option></select></label><button class="icon-button" id="print-button" type="button" aria-label="列印全書與答案" title="列印全書與答案"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V3h10v5M7 17H4V8h16v9h-3M7 14h10v7H7zM16 11h1"/></svg></button></div>
+<button class="icon-button menu-button js-only" id="menu-button" type="button" aria-label="開啟章節目錄" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+<a class="brand" href="#course-home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2zM9 3v16M15 5v16"/></svg><span>系統設計</span></a>
+<nav class="course-switch" aria-label="切換課程"><a href="../system-design-notes/index.html" aria-current="page">系統設計</a><a href="../data-structures-algorithms-notes/index.html">演算法</a></nav>
+<div class="topbar-actions js-only">
+<button class="search-trigger" id="search-button" type="button" aria-label="搜尋全書"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><span>搜尋</span><kbd>/</kbd></button>
+<label class="theme-control" for="theme-select"><span class="sr-only">顯示主題</span><select id="theme-select" aria-label="顯示主題"><option value="system">跟隨系統</option><option value="light">淺色</option><option value="dark">深色</option></select></label>
+<button class="icon-button" id="print-button" type="button" aria-label="列印全書與答案" title="列印全書與答案"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V3h10v5M7 17H4V8h16v9h-3M7 14h10v7H7zM16 11h1"/></svg></button></div>
 </header>
-<button class="drawer-backdrop" id="drawer-backdrop" tabindex="-1" aria-label="關閉章節目錄" hidden></button>
-<aside class="sidebar" id="sidebar" aria-label="教材導覽"><div class="sidebar-top"><span>學習目錄</span><button class="icon-button sidebar-close js-only" id="sidebar-close" type="button" aria-label="關閉章節目錄"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><a class="home-link" href="#course-home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-8 9 8M5 9v12h5v-7h4v7h5V9"/></svg>首頁</a><a class="home-link" href="#system-labs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v7l-6 9a1 1 0 0 0 1 2h14a1 1 0 0 0 1-2l-6-9V3M7 15h10"/></svg>互動實驗</a><nav aria-label="全部章節"><ol class="chapter-nav">{{SIDEBAR}}</ol></nav><div class="sidebar-bottom js-only"><div class="course-progress-label"><span>閱讀進度</span><strong id="course-progress-text">0 / 16</strong></div><progress id="course-progress" max="16" value="0" aria-label="已完成章節">0 / 16</progress><button class="text-button" id="show-bookmarks" type="button">書籤 <span id="bookmark-count">0</span></button><button class="text-button sidebar-print" id="sidebar-print" type="button">列印全書與答案</button><p class="local-note" id="storage-note">進度與書籤儲存在此瀏覽器。</p></div></aside>
+<button class="drawer-backdrop" id="drawer-backdrop" type="button" tabindex="-1" aria-label="關閉章節目錄" hidden></button>
+<aside class="sidebar" id="sidebar" aria-label="教材導覽">
+<div class="sidebar-top"><span>目錄</span><button class="icon-button sidebar-close js-only" id="sidebar-close" type="button" aria-label="關閉章節目錄"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+<div class="sidebar-links"><a class="home-link" href="#course-home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2zM9 3v16M15 5v16"/></svg>課程地圖</a><a class="home-link" href="#system-labs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v7l-6 9a1 1 0 0 0 1 2h14a1 1 0 0 0 1-2l-6-9V3M7 15h10"/></svg>互動實驗</a><a class="home-link mobile-course-link" href="../data-structures-algorithms-notes/index.html">資料結構與演算法</a></div>
+<nav aria-label="全部章節"><ol class="chapter-nav">{{SIDEBAR}}</ol></nav>
+<div class="sidebar-bottom js-only"><div class="course-progress-label"><span>已完成章節</span><strong id="course-progress-text">0 / 16</strong></div><progress id="course-progress" max="16" value="0" aria-label="已完成章節">0 / 16</progress><div class="sidebar-actions"><button class="text-button" id="show-bookmarks" type="button">書籤 <span id="bookmark-count">0</span></button><button class="text-button sidebar-print" id="sidebar-print" type="button">列印</button></div><p class="local-note" id="storage-note" hidden></p></div>
+</aside>
 <div class="reading-line js-only" aria-hidden="true"><span id="reading-progress"></span></div>
 <main id="main-content" tabindex="-1">
-<noscript><div class="notice">JavaScript 已停用。完整 16 章、圖解、架構案例與練習仍在下方，可用目錄跳轉、瀏覽器搜尋與列印。互動實驗、書籤及進度需要 JavaScript。</div></noscript>
+<noscript><div class="notice">完整教材在下方，使用目錄跳到章節。</div></noscript>
 <section id="course-home" class="home-page" aria-labelledby="course-title" tabindex="-1">
-  <div class="home-hero"><div class="hero-copy"><h1 id="course-title">系統設計</h1><div class="hero-actions"><a class="button primary" href="#chapter-01">開始學習 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></a><a class="button secondary" href="#system-labs">互動實驗</a></div><a class="resume-link js-only" id="resume-link" href="#chapter-01" hidden>繼續上次閱讀</a></div><div class="hero-diagram"><svg viewBox="0 0 430 376" role="img" aria-labelledby="hero-title hero-desc"><title id="hero-title">從使用者承諾推導系統架構</title><desc id="hero-desc">使用者請求進入 API，再經佇列與工作者處理，結果保存到資料庫。從需求到取捨到驗證形成回饋。</desc><defs><marker id="hero-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 10 5 0 10z" fill="currentColor"/></marker></defs><g fill="none" stroke="currentColor" stroke-width="1.5"><path class="diagram-grid" d="M26 26h378v324H26zM26 80h378M26 134h378M26 188h378M26 242h378M26 296h378M80 26v324M134 26v324M188 26v324M242 26v324M296 26v324M350 26v324"/></g><g class="diagram-box"><rect x="49" y="67" width="102" height="56" rx="4"/><rect x="279" y="67" width="102" height="56" rx="4"/><rect x="49" y="184" width="102" height="56" rx="4"/><rect x="279" y="184" width="102" height="56" rx="4"/></g><g class="diagram-type" text-anchor="middle"><text x="100" y="102">API</text><text x="330" y="102">佇列</text><text x="100" y="219">資料庫</text><text x="330" y="219">工作者</text><text x="87" y="311">需求</text><text x="215" y="311">取捨</text><text x="343" y="311">驗證</text></g><g fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#hero-arrow)"><path d="M154 95h119M330 127v50M275 211H157M121 305h57M252 305h57"/><path d="M100 180v-48" stroke-dasharray="4 4"/></g><g fill="currentColor" text-anchor="middle" font-size="11"><text x="215" y="83">接收 ≠ 完成</text><text x="355" y="155">背景處理</text><text x="214" y="200">保存結果</text></g></svg></div></div>
-  <div class="course-facts"><span><strong>16</strong> 章</span><span><strong>6</strong> 個互動實驗</span><span><strong>{{TOPIC_COUNT}}</strong> 個課綱主題</span></div>
-  <section class="home-section" id="learning-path" aria-labelledby="path-title">
-    <div class="section-heading"><h2 id="path-title">閱讀路線</h2></div>
-    <div class="learning-paths">
-      <a class="path" href="#chapter-01"><strong>依序閱讀</strong><span>01–13 章</span></a>
-      <a class="path" href="#chapter-14"><strong>設計練習</strong><span>14–16 章</span></a>
-      <a class="path" href="#system-labs"><strong>互動實驗</strong><span>6 個機制</span></a>
+<div class="course-overview sd-overview" data-home-overview>
+  <div>
+    <h1 id="course-title">系統設計</h1>
+    <div class="course-facts"><span>16 章</span><span>{{TOPIC_COUNT}} 個主題</span></div>
+    <p class="sd-intro">從文件上傳出發，追蹤請求、排隊與故障。</p>
+    <div class="hero-actions">
+      <a class="button primary js-only" href="#system-labs">互動實驗 <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sd-icon-arrow"></use></svg></a>
+      <a class="button sd-start" href="#chapter-01">開始學習</a>
+      <a class="resume-link js-only" id="resume-link" href="#chapter-01" hidden>繼續上次閱讀</a>
     </div>
-  </section>
-
-  <section class="home-section" aria-labelledby="map-title"><div class="section-heading"><h2 id="map-title">章節</h2></div><ol class="chapter-map">{{CHAPTER_MAP}}</ol></section>
-<section class="home-section case-study" aria-labelledby="case-title"><div><h2 id="case-title">多租戶文件處理服務</h2><p>使用者上傳文件，系統驗證、排入佇列、執行處理並通知結果。同一條資料路徑，串起需求、快取、儲存、分區與故障處理。</p><p class="fine-print">容量假設：1 MB = 10⁶ bytes；尖峰為平均負載的 10 倍。</p></div><dl class="case-numbers"><div><dt>租戶數</dt><dd>10,000</dd></div><div><dt>每日文件量</dt><dd>100 萬份</dd></div><div><dt>平均文件大小</dt><dd>5 MB</dd></div><div><dt>尖峰倍率</dt><dd>10×</dd></div><div><dt>每份處理成本</dt><dd>2 CPU-seconds</dd></div></dl></section>
-  <section class="home-section" id="system-labs" aria-labelledby="labs-title"><div class="section-heading"><h2 id="labs-title">互動實驗</h2></div><nav class="lab-index" aria-label="系統設計實驗"><a href="#lab-sd-cache">01 快取旁路</a><a href="#lab-sd-queue">02 佇列與背壓</a><a href="#lab-sd-retry">03 重試與冪等</a><a href="#lab-sd-replication">04 複寫與一致性</a><a href="#lab-sd-token-bucket">05 權杖桶限流</a><a href="#lab-sd-hashing">06 一致性雜湊</a></nav>{{LABS}}</section>
-<!-- LIVE INDEX START --><section class="home-section" aria-labelledby="live-index-title"><div class="section-heading"><h2 id="live-index-title">故事與示範</h2></div><div class="live-index-grid"><a href="#story-cache"><strong>快取的五幕：快了，也可能舊了</strong><small>第 05 章</small></a><a href="#story-replica"><strong>複寫像送帳本：寫完了，為什麼讀不到？</strong><small>第 02 章</small></a><a href="#story-retry"><strong>同一封信寄兩次，不能扣兩次款</strong><small>第 09 章</small></a><a href="#story-breaker"><strong>斷路器像封橋：為什麼先放一台車？</strong><small>第 13 章</small></a><a href="#story-lsm"><strong>LSM 像整理單據：快寫入的代價藏在哪？</strong><small>第 07 章</small></a><a href="#story-token"><strong>把配額畫成硬幣：突發與平均速率一眼看懂</strong><small>第 12 章</small></a><a href="#lab-queue"><strong>佇列水位實驗</strong><small>第 06 章</small></a><a href="#lab-shards"><strong>熱鍵分區實驗</strong><small>第 11 章</small></a></div></section><!-- LIVE INDEX END -->
-<!-- VISUAL INDEX START --><section class="home-section visual-index" aria-labelledby="visual-index-title"><div class="section-heading"><h2 id="visual-index-title">圖解</h2></div><div class="visual-index-grid"><details><summary>第 01 章 · 1 張圖解</summary><ul><li><a href="#visual-01-map">一份文件，沿著六個責任邊界前進</a></li></ul></details><details><summary>第 02 章 · 2 張圖解</summary><ul><li><a href="#visual-02-latency">平均很快，尾端仍可能讓人等很久</a></li><li><a href="#visual-02-replica">寫成功後，為什麼立刻讀到舊資料？</a></li></ul></details><details><summary>第 03 章 · 1 張圖解</summary><ul><li><a href="#visual-03-domains">副本位置決定容錯範圍</a></li></ul></details><details><summary>第 04 章 · 2 張圖解</summary><ul><li><a href="#visual-04-fanout">工作分攤與事件廣播：箭頭看似相同，責任不同</a></li><li><a href="#visual-04-ack">沒收到 ACK，並不能推論對方沒做事</a></li></ul></details><details><summary>第 05 章 · 2 張圖解</summary><ul><li><a href="#visual-05-cache">快取旁路：命中走捷徑，未命中才查來源</a></li><li><a href="#visual-05-race">先查再寫，兩個請求仍可能一起通過</a></li></ul></details><details><summary>第 06 章 · 2 張圖解</summary><ul><li><a href="#visual-06-backlog">佇列像水箱：流入大於流出，就持續累積</a></li><li><a href="#visual-06-pool">執行緒池：限制進行中工作，也要限制等待區</a></li></ul></details><details><summary>第 07 章 · 2 張圖解</summary><ul><li><a href="#visual-07-btree">B-tree：用一頁的分支資訊，跳過大量資料</a></li><li><a href="#visual-07-lsm">LSM：把零碎寫入，轉成批次排序與合併</a></li></ul></details><details><summary>第 08 章 · 1 張圖解</summary><ul><li><a href="#visual-08-cdn">CDN：重複內容在近端交付，未命中才回源</a></li></ul></details><details><summary>第 09 章 · 3 張圖解</summary><ul><li><a href="#visual-09-budget">逾時預算：下游只能花掉「剩餘」時間</a></li><li><a href="#visual-09-jitter">同時重試會形成第二波尖峰</a></li><li><a href="#visual-09-offset">Offset 應跨過「連續完成」的位置</a></li></ul></details><details><summary>第 10 章 · 1 張圖解</summary><ul><li><a href="#visual-10-batch">批次省下固定成本，代價是等候湊批</a></li></ul></details><details><summary>第 11 章 · 2 張圖解</summary><ul><li><a href="#visual-11-hotkey">平均分區，還是可能被單一熱鍵打穿</a></li><li><a href="#visual-11-ring">一致性雜湊：新增節點，只搬一段鍵範圍</a></li></ul></details><details><summary>第 12 章 · 2 張圖解</summary><ul><li><a href="#visual-12-scale">擴容有延遲：機器還沒就緒，積壓已在成長</a></li><li><a href="#visual-12-token">Token bucket：速率與突發上限是兩個旋鈕</a></li></ul></details><details><summary>第 13 章 · 2 張圖解</summary><ul><li><a href="#visual-13-breaker">斷路器：只放少量探測，別一次把流量灌回去</a></li><li><a href="#visual-13-bulkhead">艙壁隔離：一個租戶卡住，不該耗盡所有名額</a></li></ul></details><details><summary>第 14 章 · 1 張圖解</summary><ul><li><a href="#visual-14-loop">需求、設計與驗證形成回饋循環</a></li></ul></details><details><summary>第 15 章 · 1 張圖解</summary><ul><li><a href="#visual-15-revoke">短網址撤銷：清掉快取後，舊值仍可能回填</a></li></ul></details><details><summary>第 16 章 · 2 張圖解</summary><ul><li><a href="#visual-16-auth">每次存取都要驗證身份與資源權限</a></li><li><a href="#visual-16-observe">同一個故障，用三種觀測資料追查</a></li></ul></details></div></section><!-- VISUAL INDEX END -->
-  <section class="home-section editorial-note" aria-labelledby="editorial-title"><h2 id="editorial-title">來源與下載</h2><p>章節依 <a href="https://leetcode.com/explore/featured/card/system-design-for-interviews-and-beyond/">LeetCode 公開課綱</a>編排，各章附官方文件與論文。<a href="https://github.com/susuky/system-design-notes">原始碼</a> · <a href="https://github.com/susuky/system-design-notes/archive/refs/heads/main.zip">下載原始碼</a>；解壓後開啟 index.html 即可離線閱讀。</p></section>
+  </div>
+  <figure class="sd-preview">
+    <svg viewBox="0 0 470 230" role="img" aria-labelledby="sd-home-diagram">
+      <title id="sd-home-diagram">每批 6 件請求，輪詢 3 拍後，處理較慢的伺服器 B 還有 3 件排隊，A 和 C 都已清空。</title>
+      <g class="sd-preview-lines" aria-hidden="true">
+        <path class="sd-preview-line hot" d="M71 107h58m-5-4 5 4-5 4M201 107h29q11 0 11-11V44q0-12 12-12h44m-5-4 5 4-5 4"/>
+        <path class="sd-preview-line" d="M201 107h96m-5-4 5 4-5 4M225 107h5q11 0 11 11v49q0 12 12 12h44m-5-4 5 4-5 4"/>
+        <g class="sd-waiting-packets"><rect x="257" y="103" width="7" height="7" rx="1.3"/><rect x="269" y="103" width="7" height="7" rx="1.3"/><rect x="281" y="103" width="7" height="7" rx="1.3"/></g>
+      </g>
+      <g class="sd-art-client"><use href="#sd-art-client" x="5" y="78" width="74" height="56"/></g>
+      <g class="sd-art-router"><use href="#sd-art-router" x="126" y="72" width="86" height="65"/></g>
+      <g text-anchor="middle"><text x="42" y="156">請求來源</text><text class="sd-preview-value" x="42" y="177">6 件／批</text>
+        <text x="169" y="156">負載平衡器</text><text class="sd-preview-value" x="169" y="177">輪詢 3 拍</text></g>
+      <g class="sd-art-server">
+        <use href="#sd-art-server" x="289" y="5" width="72" height="54"/><use href="#sd-art-server" x="289" y="80" width="72" height="54"/><use href="#sd-art-server" x="289" y="152" width="72" height="54"/>
+      </g>
+      <text x="362" y="30">伺服器 A</text><text class="sd-preview-value" x="362" y="51">排隊 0</text>
+      <text x="362" y="105">伺服器 B</text><text class="sd-preview-value sd-preview-low" x="362" y="126">排隊 3</text>
+      <text x="362" y="178">伺服器 C</text><text class="sd-preview-value" x="362" y="199">排隊 0</text>
+    </svg>
+  </figure>
+</div>
+<section class="home-section chapter-directory" data-home-overview aria-labelledby="chapter-map-title"><h2 id="chapter-map-title">課程地圖</h2><ol class="chapter-map">{{CHAPTER_MAP}}</ol></section>
+<section class="home-section" id="system-labs" aria-labelledby="labs-title">
+  <div class="section-heading"><h2 id="labs-title">互動實驗</h2></div>
+  <nav class="sim-index js-only" aria-label="即時模擬">
+    <a href="#sim-sd-routing"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sd-icon-router"></use></svg>負載平衡</a>
+    <a href="#sim-sd-cache"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sd-icon-cache"></use></svg>快取 TTL</a>
+    <a href="#sim-sd-queue"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sd-icon-queue"></use></svg>佇列背壓</a>
+    <a href="#sim-sd-quorum"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sd-icon-db"></use></svg>複本仲裁</a>
+    <a href="#sim-sd-breaker"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sd-icon-activity"></use></svg>斷路器與重試</a>
+    <a href="#sim-sd-hashing"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#sd-icon-server"></use></svg>一致性雜湊</a>
+  </nav>
+  <section class="simulation js-only" id="sim-sd-routing" data-sd-simulation="routing" aria-labelledby="sim-sd-routing-title"><h3 id="sim-sd-routing-title">負載平衡</h3></section>
+  <section class="simulation js-only" id="sim-sd-cache" data-sd-simulation="cache" aria-labelledby="sim-sd-cache-title"><h3 id="sim-sd-cache-title">快取 TTL</h3></section>
+  <section class="simulation js-only" id="sim-sd-queue" data-sd-simulation="queue" aria-labelledby="sim-sd-queue-title"><h3 id="sim-sd-queue-title">佇列背壓</h3></section>
+  <section class="simulation js-only" id="sim-sd-quorum" data-sd-simulation="quorum" aria-labelledby="sim-sd-quorum-title"><h3 id="sim-sd-quorum-title">複本仲裁</h3></section>
+  <section class="simulation js-only" id="sim-sd-breaker" data-sd-simulation="breaker" aria-labelledby="sim-sd-breaker-title"><h3 id="sim-sd-breaker-title">斷路器與重試風暴</h3></section>
+  <section class="simulation js-only" id="sim-sd-hashing" data-sd-simulation="hashing" aria-labelledby="sim-sd-hashing-title"><h3 id="sim-sd-hashing-title">一致性雜湊與搬移量</h3></section>
+  <h3 class="trace-title">逐步實驗</h3>
+  <nav class="lab-index" aria-label="系統設計逐步實驗">
+    <a href="#lab-sd-cache">快取旁路</a><a href="#lab-sd-queue">佇列與背壓</a><a href="#lab-sd-retry">重試與冪等</a><a href="#lab-sd-replication">複寫與一致性</a><a href="#lab-sd-token-bucket">權杖桶</a><a href="#lab-sd-hashing">一致性雜湊</a>
+  </nav>
+  {{LABS}}
 </section>
-<div class="reader" id="reader"><div class="reader-tools js-only"><a href="#course-home" class="back-to-map"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12H4m6-6-6 6 6 6"/></svg>首頁</a><span class="reader-position" id="reader-position"></span><div class="reader-tool-buttons"><button class="small-button" id="bookmark-button" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg><span>加入書籤</span></button><button class="small-button" id="complete-button" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span>標記完成</span></button></div></div><details class="topic-toc js-only" id="topic-toc"><summary>本章小節 <span id="topic-count"></span></summary><nav aria-label="本章小節"><ol id="topic-list"></ol></nav></details><div id="chapters">{{CHAPTERS}}</div><nav class="chapter-pagination js-only" aria-label="章節導覽"><a id="prev-chapter" href="#course-home"><span>上一站</span><strong>首頁</strong></a><a id="next-chapter" href="#chapter-02"><span>下一章</span><strong>繼續閱讀</strong></a></nav></div>
-<footer class="site-footer"><span>系統設計</span><a href="#course-home">回到首頁</a></footer>
+<section class="home-section editorial-note" data-home-overview aria-labelledby="editorial-title"><h2 id="editorial-title">來源與下載</h2><p>各單元附原始文件與課程來源。<a href="https://github.com/susuky/system-design-notes">原始碼</a> · <a href="https://github.com/susuky/system-design-notes/archive/refs/heads/main.zip">下載教材</a></p></section>
+</section>
+<div class="reader" id="reader">
+<div class="reader-tools js-only"><div class="reader-location"><a href="#course-home" class="back-to-map">課程</a><span class="reader-position" id="reader-position"></span><span id="reader-context"></span></div><div class="reader-tool-buttons"><div class="reading-view" role="group" aria-label="閱讀方式"><button type="button" data-reading-view="unit" aria-pressed="true">單元</button><button type="button" data-reading-view="chapter" aria-pressed="false">全章</button></div><button class="small-button" id="bookmark-button" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg><span>加入書籤</span></button><button class="small-button" id="complete-button" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span>完成本章</span></button></div></div>
+<details class="topic-toc js-only" id="topic-toc"><summary>本章單元 <span id="topic-count"></span></summary><nav aria-label="本章小節"><ol id="topic-list"></ol></nav></details>
+<nav class="unit-steps js-only" id="unit-steps" aria-label="本章單元進度"></nav>
+<div id="chapters">{{CHAPTERS}}</div>
+<nav class="chapter-pagination js-only" aria-label="單元導覽"><a id="prev-chapter" href="#course-home"><span>上一節</span><strong>課程地圖</strong></a><div class="unit-position" id="unit-position"></div><a id="next-chapter" href="#chapter-02"><span>下一節</span><strong>繼續學習</strong></a></nav>
+</div>
+<footer class="site-footer"><span>系統設計</span><a href="#course-home">課程地圖</a></footer>
 </main>
-<dialog class="search-dialog" id="search-dialog" aria-labelledby="search-title"><div class="search-header"><h2 id="search-title">搜尋全書</h2><button class="icon-button" id="close-search" type="button" aria-label="關閉搜尋"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><div class="search-field"><label class="sr-only" for="search-input">輸入關鍵字</label><input id="search-input" type="search" placeholder="搜尋關鍵字" autocomplete="off"><kbd>Esc</kbd></div><p class="search-status" id="search-status" role="status" aria-live="polite"></p><ol class="search-results" id="search-results"></ol></dialog>
-<dialog class="bookmark-dialog" id="bookmark-dialog" aria-labelledby="bookmark-title"><div class="search-header"><h2 id="bookmark-title">書籤</h2><button class="icon-button" id="close-bookmarks" type="button" aria-label="關閉書籤"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><p class="empty-bookmarks" id="empty-bookmarks">還沒有書籤。閱讀章節時，按「加入書籤」。</p><ol class="bookmark-list" id="bookmark-list"></ol></dialog>
-
+<dialog class="search-dialog" id="search-dialog" aria-labelledby="search-title"><div class="search-header"><h2 id="search-title">搜尋</h2><button class="icon-button" id="close-search" type="button" aria-label="關閉搜尋"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><div class="search-field"><label class="sr-only" for="search-input">搜尋關鍵字</label><input id="search-input" type="search" placeholder="快取、重試、容量估算…" autocomplete="off"><kbd>Esc</kbd></div><p class="search-status" id="search-status" role="status" aria-live="polite"></p><ol class="search-results" id="search-results"></ol></dialog>
+<dialog class="bookmark-dialog" id="bookmark-dialog" aria-labelledby="bookmark-title"><div class="search-header"><h2 id="bookmark-title">書籤</h2><button class="icon-button" id="close-bookmarks" type="button" aria-label="關閉書籤"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><p class="empty-bookmarks" id="empty-bookmarks">尚無書籤</p><ol class="bookmark-list" id="bookmark-list"></ol></dialog>
+<div id="toast" role="status" hidden></div>
 <script id="course-meta" type="application/json">{{CHAPTER_META}}</script>
 <script>{{HIGHLIGHT_JS}}</script>
 <script>{{LABS_JS}}</script>
 <script>{{VISUALS_JS}}</script>
+<script>{{READER_JS}}</script>
 <script>{{APP_JS}}</script>
-</body></html>
+</body>
+</html>
