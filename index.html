@@ -877,6 +877,10 @@ body[data-course="sd"] {
   grid-template-areas: "client client router router" "shard0 shard1 shard2 shard3";
 }
 .sim-map-hashing .sim-node-art { inline-size: clamp(2.55rem, 13.5cqi, 4.6rem); }
+.sim-map-hashing .sim-node-db .sim-node-value {
+  font-size: clamp(.74rem, 2.5cqi, 1.05rem);
+  text-shadow: 0 1px 4px #10242b, 0 0 8px #10242b;
+}
 .sim-map-queue[data-policy="reject"] [data-shape="return"] { visibility: hidden; }
 .sim-connections {
   position: absolute; inset: 0; inline-size: 100%; block-size: 100%;
@@ -3888,7 +3892,7 @@ Prism.languages.json={property:{pattern:/(^|[^\\])"(?:\\.|[^\\"\r\n])*"(?=\s*:)/
       actions: [['toggle-d', '切換分片 D'], ['reset', '重設']],
       metrics: ['上線分片', '本次搬移鍵數', '搬移比例', '最熱分片負載'],
       map: id => diagram(id, 'hashing', [
-        node('client', '12 筆鍵', 'client'), node('router', '分片路由器', 'router'),
+        node('client', '鍵空間', 'client'), node('router', '分片路由器', 'router'),
         ...shardNames.map((name, i) => node('shard' + i, '分片 ' + name, 'db', 'shard-' + i))
       ], [['client', 'router', 'across'], ...shardNames.map((_, i) => ['router', 'shard' + i, 'down'])]),
       start: hashingStart,

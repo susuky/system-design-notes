@@ -200,6 +200,10 @@ body[data-course="sd"] {
   grid-template-areas: "client client router router" "shard0 shard1 shard2 shard3";
 }
 .sim-map-hashing .sim-node-art { inline-size: clamp(2.55rem, 13.5cqi, 4.6rem); }
+.sim-map-hashing .sim-node-db .sim-node-value {
+  font-size: clamp(.74rem, 2.5cqi, 1.05rem);
+  text-shadow: 0 1px 4px #10242b, 0 0 8px #10242b;
+}
 .sim-map-queue[data-policy="reject"] [data-shape="return"] { visibility: hidden; }
 .sim-connections {
   position: absolute; inset: 0; inline-size: 100%; block-size: 100%;

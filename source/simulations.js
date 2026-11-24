@@ -618,7 +618,7 @@
       actions: [['toggle-d', '切換分片 D'], ['reset', '重設']],
       metrics: ['上線分片', '本次搬移鍵數', '搬移比例', '最熱分片負載'],
       map: id => diagram(id, 'hashing', [
-        node('client', '12 筆鍵', 'client'), node('router', '分片路由器', 'router'),
+        node('client', '鍵空間', 'client'), node('router', '分片路由器', 'router'),
         ...shardNames.map((name, i) => node('shard' + i, '分片 ' + name, 'db', 'shard-' + i))
       ], [['client', 'router', 'across'], ...shardNames.map((_, i) => ['router', 'shard' + i, 'down'])]),
       start: hashingStart,
